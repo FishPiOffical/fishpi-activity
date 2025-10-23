@@ -120,12 +120,13 @@ func (config *Config) SetValue(value string) {
 }
 
 const (
-	DbNameActivities      = "activities"
-	ActivitiesFieldName   = "name"
-	ActivitiesFieldDesc   = "desc"
-	ActivitiesFieldStart  = "start"
-	ActivitiesFieldEnd    = "end"
-	ActivitiesFieldVoteId = "voteId"
+	DbNameActivities           = "activities"
+	ActivitiesFieldName        = "name"
+	ActivitiesFieldDesc        = "desc"
+	ActivitiesFieldStart       = "start"
+	ActivitiesFieldEnd         = "end"
+	ActivitiesFieldVoteId      = "voteId"
+	ActivitiesFieldRewardGroup = "rewardGroup"
 )
 
 const (
@@ -184,4 +185,13 @@ const (
 	YearlyHistoriesFieldArticleShieldId = "articleShieldId"
 	YearlyHistoriesFieldAgeShieldId     = "ageShieldId"
 	YearlyHistoriesFieldArticleUrl      = "articleUrl"
+)
+
+const (
+	DbNameRewards     = "rewards"
+	RewardsFieldGroup = "group"
+	RewardsFieldMin   = "min"
+	RewardsFieldMax   = "max"
+	RewardsFieldPoint = "point"
+	RewardsFieldMore  = "more"
 )
