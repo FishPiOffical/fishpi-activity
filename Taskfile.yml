@@ -1,0 +1,15 @@
+version: 3
+
+tasks:
+  run:
+    desc: 运行主程序
+    cmd: go run main.go serve --http=0.0.0.0:8090
+
+  build-linux-amd64:
+    desc: 编译到 `_tmp` 目录下的 linux amd64 二进制文件
+    env:
+      GOOS: linux
+      GOARCH: amd64
+    cmds:
+      - mkdir -p _tmp
+      - go build -o _tmp/fishpi-activity .
