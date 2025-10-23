@@ -251,22 +251,24 @@ const (
 )
 
 const (
-	DbNameShields         = "shields"
-	ShieldsFieldText      = "text"
-	ShieldsFieldUrl       = "url"
-	ShieldsFieldBackcolor = "backcolor"
-	ShieldsFieldFontcolor = "fontcolor"
-	ShieldsFieldVer       = "ver"
-	ShieldsFieldScale     = "scale"
-	ShieldsFieldSize      = "size"
-	ShieldsFieldBorder    = "border"
-	ShieldsFieldBarLen    = "barlen"
-	ShieldsFieldFontsize  = "fontsize"
-	ShieldsFieldBarRadius = "barradius"
-	ShieldsFieldShadow    = "shadow"
-	ShieldsFieldAnime     = "anime"
-	ShieldsFieldCreated   = "created"
-	ShieldsFieldUpdated   = "updated"
+	DbNameShields          = "shields"
+	ShieldsFieldActivityId = "activityId"
+	ShieldsFieldUserId     = "userId"
+	ShieldsFieldText       = "text"
+	ShieldsFieldUrl        = "url"
+	ShieldsFieldBackcolor  = "backcolor"
+	ShieldsFieldFontcolor  = "fontcolor"
+	ShieldsFieldVer        = "ver"
+	ShieldsFieldScale      = "scale"
+	ShieldsFieldSize       = "size"
+	ShieldsFieldBorder     = "border"
+	ShieldsFieldBarLen     = "barlen"
+	ShieldsFieldFontsize   = "fontsize"
+	ShieldsFieldBarRadius  = "barradius"
+	ShieldsFieldShadow     = "shadow"
+	ShieldsFieldAnime      = "anime"
+	ShieldsFieldCreated    = "created"
+	ShieldsFieldUpdated    = "updated"
 )
 
 const (
@@ -313,3 +315,179 @@ const (
 	RewardsFieldPoint         = "point"
 	RewardsFieldMore          = "more"
 )
+
+// Shield wrapper type
+type Shield struct {
+	core.BaseRecordProxy
+}
+
+func NewShield(record *core.Record) *Shield {
+	shield := new(Shield)
+	shield.SetProxyRecord(record)
+	return shield
+}
+
+func NewShieldFromCollection(collection *core.Collection) *Shield {
+	record := core.NewRecord(collection)
+	return NewShield(record)
+}
+
+func (shield *Shield) Text() string {
+	return shield.GetString(ShieldsFieldText)
+}
+
+func (shield *Shield) SetText(value string) {
+	shield.Set(ShieldsFieldText, value)
+}
+
+func (shield *Shield) Url() string {
+	return shield.GetString(ShieldsFieldUrl)
+}
+
+func (shield *Shield) SetUrl(value string) {
+	shield.Set(ShieldsFieldUrl, value)
+}
+
+func (shield *Shield) Backcolor() string {
+	return shield.GetString(ShieldsFieldBackcolor)
+}
+
+func (shield *Shield) SetBackcolor(value string) {
+	shield.Set(ShieldsFieldBackcolor, value)
+}
+
+func (shield *Shield) Fontcolor() string {
+	return shield.GetString(ShieldsFieldFontcolor)
+}
+
+func (shield *Shield) SetFontcolor(value string) {
+	shield.Set(ShieldsFieldFontcolor, value)
+}
+
+// Article wrapper type
+type Article struct {
+	core.BaseRecordProxy
+}
+
+func NewArticle(record *core.Record) *Article {
+	article := new(Article)
+	article.SetProxyRecord(record)
+	return article
+}
+
+func NewArticleFromCollection(collection *core.Collection) *Article {
+	record := core.NewRecord(collection)
+	return NewArticle(record)
+}
+
+func (article *Article) ActivityId() string {
+	return article.GetString(ArticlesFieldActivityId)
+}
+
+func (article *Article) SetActivityId(value string) {
+	article.Set(ArticlesFieldActivityId, value)
+}
+
+func (article *Article) UserId() string {
+	return article.GetString(ArticlesFieldUserId)
+}
+
+func (article *Article) SetUserId(value string) {
+	article.Set(ArticlesFieldUserId, value)
+}
+
+func (article *Article) Title() string {
+	return article.GetString(ArticlesFieldTitle)
+}
+
+func (article *Article) SetTitle(value string) {
+	article.Set(ArticlesFieldTitle, value)
+}
+
+func (article *Article) Content() string {
+	return article.GetString(ArticlesFieldContent)
+}
+
+func (article *Article) SetContent(value string) {
+	article.Set(ArticlesFieldContent, value)
+}
+
+func (article *Article) ShieldId() string {
+	return article.GetString(ArticlesFieldShieldId)
+}
+
+func (article *Article) SetShieldId(value string) {
+	article.Set(ArticlesFieldShieldId, value)
+}
+
+// Vote wrapper type
+type Vote struct {
+	core.BaseRecordProxy
+}
+
+func NewVote(record *core.Record) *Vote {
+	vote := new(Vote)
+	vote.SetProxyRecord(record)
+	return vote
+}
+
+func NewVoteFromCollection(collection *core.Collection) *Vote {
+	record := core.NewRecord(collection)
+	return NewVote(record)
+}
+
+func (vote *Vote) Name() string {
+	return vote.GetString(VotesFieldName)
+}
+
+func (vote *Vote) SetName(value string) {
+	vote.Set(VotesFieldName, value)
+}
+
+// VoteLog wrapper type
+type VoteLog struct {
+	core.BaseRecordProxy
+}
+
+func NewVoteLog(record *core.Record) *VoteLog {
+	voteLog := new(VoteLog)
+	voteLog.SetProxyRecord(record)
+	return voteLog
+}
+
+func NewVoteLogFromCollection(collection *core.Collection) *VoteLog {
+	record := core.NewRecord(collection)
+	return NewVoteLog(record)
+}
+
+func (voteLog *VoteLog) VoteId() string {
+	return voteLog.GetString(VoteLogsFieldVoteId)
+}
+
+func (voteLog *VoteLog) SetVoteId(value string) {
+	voteLog.Set(VoteLogsFieldVoteId, value)
+}
+
+func (voteLog *VoteLog) FromUserId() string {
+	return voteLog.GetString(VoteLogsFieldFromUserId)
+}
+
+func (voteLog *VoteLog) SetFromUserId(value string) {
+	voteLog.Set(VoteLogsFieldFromUserId, value)
+}
+
+func (voteLog *VoteLog) ToUserId() string {
+	return voteLog.GetString(VoteLogsFieldToUserId)
+}
+
+func (voteLog *VoteLog) SetToUserId(value string) {
+	voteLog.Set(VoteLogsFieldToUserId, value)
+}
+
+func (voteLog *VoteLog) Comment() string {
+	return voteLog.GetString(VoteLogsFieldComment)
+}
+
+func (voteLog *VoteLog) SetComment(value string) {
+	voteLog.Set(VoteLogsFieldComment, value)
+}

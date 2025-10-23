@@ -29,10 +29,11 @@ type Application struct {
 
 	fishPiService *fishpi.Service
 
-	baseController     *controller.BaseController
-	fishPiController   *controller.FishPiController
-	userController     *controller.UserController
-	activityController *controller.ActivityController
+	baseController           *controller.BaseController
+	fishPiController         *controller.FishPiController
+	userController           *controller.UserController
+	activityController       *controller.ActivityController
+	shieldFiveYearController *controller.ShieldFiveYearController
 }
 
 func NewApp() *Application {
@@ -92,6 +93,7 @@ func (application *Application) registerRoutes(event *core.ServeEvent) error {
 	application.fishPiController = controller.NewFishPiController(event)
 	application.userController = controller.NewUserController(event)
 	application.activityController = controller.NewActivityController(event)
+	application.shieldFiveYearController = controller.NewShieldFiveYearController(event)
 
 	event.Router.GET("/status", func(e *core.RequestEvent) error {
 		return e.String(http.StatusOK, "ok.")
