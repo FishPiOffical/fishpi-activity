@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动列表</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            padding: 60px 20px;
+        }
+
+        .error {
+            text-align: center;
+            color: #ff6b6b;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px auto;
+            max-width: 600px;
+        }
+
+        .activities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .activity-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .activity-card:hover:not(.expired) {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .activity-card.expired {
+            opacity: 0.6;
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+        .activity-card.expired * {
+            color: #999 !important;
+        }
+
+        .activity-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .activity-time {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .activity-desc {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .activity-desc::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .activity-desc::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        .activity-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-expired {
+            background: #9E9E9E;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            padding: 60px 20px;
+        }
+
+        /* PocketBase Rich Editor 样式 */
+        .activity-desc p {
+            margin-bottom: 10px;
+        }
+
+        .activity-desc ul, .activity-desc ol {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .activity-desc li {
+            margin-bottom: 5px;
+        }
+
+        .activity-desc a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .activity-desc a:hover {
+            text-decoration: underline;
+        }
+
+        .activity-desc strong {
+            font-weight: 600;
+        }
+
+        .activity-desc em {
+            font-style: italic;
+        }
+
+        .activity-desc code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .activity-desc h1, .activity-desc h2, .activity-desc h3,
+        .activity-desc h4, .activity-desc h5, .activity-desc h6 {
+            margin-top: 10px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .activity-desc blockquote {
+            border-left: 3px solid #ddd;
+            padding-left: 10px;
+            margin: 10px 0;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .activities-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 活动列表</h1>
+        <div id="content">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+    <script>
+        // 获取活动列表
+        async function loadActivities() {
+            try {
+                const response = await fetch('/api/activities');
+                if (!response.ok) {
+                    throw new Error('获取活动列表失败');
+                }
+                const data = await response.json();
+                renderActivities(data.items || []);
+            } catch (error) {
+                console.error('Error loading activities:', error);
+                document.getElementById('content').innerHTML =
+                    '<div class="error">加载活动列表失败，请稍后重试</div>';
+            }
+        }
+
+        // 渲染活动列表
+        function renderActivities(activities) {
+            const contentDiv = document.getElementById('content');
+
+            if (activities.length === 0) {
+                contentDiv.innerHTML = '<div class="empty-state">暂无活动</div>';
+                return;
+            }
+
+            const now = new Date();
+
+            const html = activities.map(activity => {
+                const startTime = new Date(activity.start);
+                const endTime = new Date(activity.end);
+                const isExpired = now > endTime;
+
+                // 确定跳转URL
+                let targetUrl = '';
+                let onclick = '';
+                if (!isExpired) {
+                    if (activity.externalUrl) {
+                        targetUrl = activity.externalUrl;
+                    } else {
+                        targetUrl = `/${activity.slug}.html`;
+                    }
+                    onclick = `onclick="window.location.href='${escapeHtml(targetUrl)}'"`
+                }
+
+                const expiredClass = isExpired ? ' expired' : '';
+                const statusClass = isExpired ? 'status-expired' : 'status-active';
+                const statusText = isExpired ? '已结束' : '进行中';
+
+                return `
+                    <div class="activity-card${expiredClass}" ${onclick}>
+                        <div class="activity-name">${escapeHtml(activity.name)}</div>
+                        <div class="activity-time">
+                            <div>开始：${formatDateTime(startTime)}</div>
+                            <div>结束：${formatDateTime(endTime)}</div>
+                        </div>
+                        <div class="activity-desc">${activity.desc || ''}</div>
+                        <div>
+                            <span class="activity-status ${statusClass}">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            contentDiv.innerHTML = `<div class="activities-grid">${html}</div>`;
+        }
+
+        // 格式化日期时间
+        function formatDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 页面加载时获取活动列表
+        document.addEventListener('DOMContentLoaded', loadActivities);
+    </script>
+</body>
+</html>
+

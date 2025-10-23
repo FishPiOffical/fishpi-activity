@@ -29,9 +29,10 @@ type Application struct {
 
 	fishPiService *fishpi.Service
 
-	baseController   *controller.BaseController
-	fishPiController *controller.FishPiController
-	userController   *controller.UserController
+	baseController     *controller.BaseController
+	fishPiController   *controller.FishPiController
+	userController     *controller.UserController
+	activityController *controller.ActivityController
 }
 
 func NewApp() *Application {
@@ -90,12 +91,13 @@ func (application *Application) registerRoutes(event *core.ServeEvent) error {
 	application.baseController = controller.NewBaseController(event)
 	application.fishPiController = controller.NewFishPiController(event)
 	application.userController = controller.NewUserController(event)
-
-	event.Router.GET("/{path...}", apis.Static(os.DirFS("./pb_public"), false))
+	application.activityController = controller.NewActivityController(event)
 
 	event.Router.GET("/status", func(e *core.RequestEvent) error {
 		return e.String(http.StatusOK, "ok.")
 	})
+
+	event.Router.GET("/{path...}", apis.Static(os.DirFS("./pb_public"), false))
 
 	return event.Next()
 }

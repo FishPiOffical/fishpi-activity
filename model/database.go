@@ -12,6 +12,7 @@ const (
 var (
 	_ core.RecordProxy = (*User)(nil)
 	_ core.RecordProxy = (*Config)(nil)
+	_ core.RecordProxy = (*Activity)(nil)
 )
 
 const (
@@ -134,6 +135,109 @@ const (
 	ActivitiesFieldCreated     = "created"
 	ActivitiesFieldUpdated     = "updated"
 )
+
+type Activity struct {
+	core.BaseRecordProxy
+}
+
+func NewActivity(record *core.Record) *Activity {
+	activity := new(Activity)
+	activity.SetProxyRecord(record)
+	return activity
+}
+
+func NewActivityFromCollection(collection *core.Collection) *Activity {
+	record := core.NewRecord(collection)
+	return NewActivity(record)
+}
+
+func (activity *Activity) Name() string {
+	return activity.GetString(ActivitiesFieldName)
+}
+
+func (activity *Activity) SetName(value string) {
+	activity.Set(ActivitiesFieldName, value)
+}
+
+func (activity *Activity) Slug() string {
+	return activity.GetString(ActivitiesFieldSlug)
+}
+
+func (activity *Activity) SetSlug(value string) {
+	activity.Set(ActivitiesFieldSlug, value)
+}
+
+func (activity *Activity) ArticleUrl() string {
+	return activity.GetString(ActivitiesFieldArticleUrl)
+}
+
+func (activity *Activity) SetArticleUrl(value string) {
+	activity.Set(ActivitiesFieldArticleUrl, value)
+}
+
+func (activity *Activity) ExternalUrl() string {
+	return activity.GetString(ActivitiesFieldExternalUrl)
+}
+
+func (activity *Activity) SetExternalUrl(value string) {
+	activity.Set(ActivitiesFieldExternalUrl, value)
+}
+
+func (activity *Activity) Desc() string {
+	return activity.GetString(ActivitiesFieldDesc)
+}
+
+func (activity *Activity) SetDesc(value string) {
+	activity.Set(ActivitiesFieldDesc, value)
+}
+
+func (activity *Activity) Start() types.DateTime {
+	return activity.GetDateTime(ActivitiesFieldStart)
+}
+
+func (activity *Activity) SetStart(value types.DateTime) {
+	activity.Set(ActivitiesFieldStart, value)
+}
+
+func (activity *Activity) End() types.DateTime {
+	return activity.GetDateTime(ActivitiesFieldEnd)
+}
+
+func (activity *Activity) SetEnd(value types.DateTime) {
+	activity.Set(ActivitiesFieldEnd, value)
+}
+
+func (activity *Activity) VoteId() string {
+	return activity.GetString(ActivitiesFieldVoteId)
+}
+
+func (activity *Activity) SetVoteId(value string) {
+	activity.Set(ActivitiesFieldVoteId, value)
+}
+
+func (activity *Activity) RewardGroup() string {
+	return activity.GetString(ActivitiesFieldRewardGroup)
+}
+
+func (activity *Activity) SetRewardGroup(value string) {
+	activity.Set(ActivitiesFieldRewardGroup, value)
+}
+
+func (activity *Activity) HideInList() bool {
+	return activity.GetBool(ActivitiesFieldHideInList)
+}
+
+func (activity *Activity) SetHideInList(value bool) {
+	activity.Set(ActivitiesFieldHideInList, value)
+}
+
+func (activity *Activity) Created() types.DateTime {
+	return activity.GetDateTime(ActivitiesFieldCreated)
+}
+
+func (activity *Activity) Updated() types.DateTime {
+	return activity.GetDateTime(ActivitiesFieldUpdated)
+}
 
 const (
 	DbNameArticles          = "Articles"
