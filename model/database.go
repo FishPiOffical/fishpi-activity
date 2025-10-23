@@ -123,6 +123,8 @@ const (
 	DbNameActivities           = "activities"
 	ActivitiesFieldName        = "name"
 	ActivitiesFieldSlug        = "slug"
+	ActivitiesFieldArticleUrl  = "articleUrl"
+	ActivitiesFieldExternalUrl = "externalUrl"
 	ActivitiesFieldDesc        = "desc"
 	ActivitiesFieldStart       = "start"
 	ActivitiesFieldEnd         = "end"
