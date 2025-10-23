@@ -307,6 +307,7 @@ const (
 const (
 	DbNameRewards             = "rewards"
 	RewardsFieldRewardGroupId = "rewardGroupId"
+	RewardsFieldName          = "name"
 	RewardsFieldMin           = "min"
 	RewardsFieldMax           = "max"
 	RewardsFieldPoint         = "point"
