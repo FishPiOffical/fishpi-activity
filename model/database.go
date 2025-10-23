@@ -118,3 +118,70 @@ func (config *Config) Value() string {
 func (config *Config) SetValue(value string) {
 	config.Set(ConfigsFieldValue, value)
 }
+
+const (
+	DbNameActivities      = "activities"
+	ActivitiesFieldName   = "name"
+	ActivitiesFieldDesc   = "desc"
+	ActivitiesFieldStart  = "start"
+	ActivitiesFieldEnd    = "end"
+	ActivitiesFieldVoteId = "voteId"
+)
+
+const (
+	DbNameArticles          = "Articles"
+	ArticlesFieldActivityId = "activityId"
+	ArticlesFieldUserId     = "userId"
+	ArticlesFieldTitle      = "title"
+	ArticlesFieldContent    = "content"
+	ArticlesFieldShieldId   = "shieldId"
+	ArticlesFieldCreated    = "created"
+	ArticlesFieldUpdated    = "updated"
+)
+
+const (
+	DbNameShields         = "shields"
+	ShieldsFieldText      = "text"
+	ShieldsFieldUrl       = "url"
+	ShieldsFieldBackcolor = "backcolor"
+	ShieldsFieldFontcolor = "fontcolor"
+	ShieldsFieldVer       = "ver"
+	ShieldsFieldScale     = "scale"
+	ShieldsFieldSize      = "size"
+	ShieldsFieldBorder    = "border"
+	ShieldsFieldBarLen    = "barlen"
+	ShieldsFieldFontsize  = "fontsize"
+	ShieldsFieldBarRadius = "barradius"
+	ShieldsFieldShadow    = "shadow"
+	ShieldsFieldAnime     = "anime"
+	ShieldsFieldCreated   = "created"
+	ShieldsFieldUpdated   = "updated"
+)
+
+const (
+	DbNameVotes     = "votes"
+	VotesFieldName  = "name"
+	VotesFieldDesc  = "desc"
+	VotesFieldTimes = "times"
+	VotesFieldStart = "start"
+	VotesFieldEnd   = "end"
+)
+
+const (
+	DbNameVoteLogs          = "voteLogs"
+	VoteLogsFieldVoteId     = "voteId"
+	VoteLogsFieldFromUserId = "fromUserId"
+	VoteLogsFieldToUserId   = "toUserId"
+	VoteLogsFieldComment    = "comment"
+	VoteLogsFieldCreated    = "created"
+	VoteLogsFieldUpdated    = "updated"
+)
+
+const (
+	DbNameYearlyHistories               = "yearlyHistories"
+	YearlyHistoriesFieldYear            = "year"
+	YearlyHistoriesFieldKeyword         = "keyword"
+	YearlyHistoriesFieldArticleShieldId = "articleShieldId"
+	YearlyHistoriesFieldAgeShieldId     = "ageShieldId"
+	YearlyHistoriesFieldArticleUrl      = "articleUrl"
+)
