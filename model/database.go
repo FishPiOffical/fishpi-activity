@@ -121,19 +121,19 @@ func (config *Config) SetValue(value string) {
 }
 
 const (
-	DbNameActivities           = "activities"
-	ActivitiesFieldName        = "name"
-	ActivitiesFieldSlug        = "slug"
-	ActivitiesFieldArticleUrl  = "articleUrl"
-	ActivitiesFieldExternalUrl = "externalUrl"
-	ActivitiesFieldDesc        = "desc"
-	ActivitiesFieldStart       = "start"
-	ActivitiesFieldEnd         = "end"
-	ActivitiesFieldVoteId      = "voteId"
-	ActivitiesFieldRewardGroup = "rewardGroup"
-	ActivitiesFieldHideInList  = "hideInList"
-	ActivitiesFieldCreated     = "created"
-	ActivitiesFieldUpdated     = "updated"
+	DbNameActivities             = "activities"
+	ActivitiesFieldName          = "name"
+	ActivitiesFieldSlug          = "slug"
+	ActivitiesFieldArticleUrl    = "articleUrl"
+	ActivitiesFieldExternalUrl   = "externalUrl"
+	ActivitiesFieldDesc          = "desc"
+	ActivitiesFieldStart         = "start"
+	ActivitiesFieldEnd           = "end"
+	ActivitiesFieldVoteId        = "voteId"
+	ActivitiesFieldRewardGroupId = "rewardGroupId"
+	ActivitiesFieldHideInList    = "hideInList"
+	ActivitiesFieldCreated       = "created"
+	ActivitiesFieldUpdated       = "updated"
 )
 
 type Activity struct {
@@ -215,12 +215,12 @@ func (activity *Activity) SetVoteId(value string) {
 	activity.Set(ActivitiesFieldVoteId, value)
 }
 
-func (activity *Activity) RewardGroup() string {
-	return activity.GetString(ActivitiesFieldRewardGroup)
+func (activity *Activity) RewardGroupId() string {
+	return activity.GetString(ActivitiesFieldRewardGroupId)
 }
 
-func (activity *Activity) SetRewardGroup(value string) {
-	activity.Set(ActivitiesFieldRewardGroup, value)
+func (activity *Activity) SetRewardGroupId(value string) {
+	activity.Set(ActivitiesFieldRewardGroupId, value)
 }
 
 func (activity *Activity) HideInList() bool {
@@ -298,10 +298,17 @@ const (
 )
 
 const (
-	DbNameRewards     = "rewards"
-	RewardsFieldGroup = "group"
-	RewardsFieldMin   = "min"
-	RewardsFieldMax   = "max"
-	RewardsFieldPoint = "point"
-	RewardsFieldMore  = "more"
+	DbNameRewardGroups       = "rewardGroups"
+	RewardGroupsFieldName    = "name"
+	RewardGroupsFieldCreated = "created"
+	RewardGroupsFieldUpdated = "updated"
+)
+
+const (
+	DbNameRewards             = "rewards"
+	RewardsFieldRewardGroupId = "rewardGroupId"
+	RewardsFieldMin           = "min"
+	RewardsFieldMax           = "max"
+	RewardsFieldPoint         = "point"
+	RewardsFieldMore          = "more"
 )
