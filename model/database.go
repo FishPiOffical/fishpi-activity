@@ -129,6 +129,8 @@ const (
 	ActivitiesFieldVoteId      = "voteId"
 	ActivitiesFieldRewardGroup = "rewardGroup"
 	ActivitiesFieldHideInList  = "hideInList"
+	ActivitiesFieldCreated     = "created"
+	ActivitiesFieldUpdated     = "updated"
 )
 
 const (
