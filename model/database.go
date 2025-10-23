@@ -122,11 +122,13 @@ func (config *Config) SetValue(value string) {
 const (
 	DbNameActivities           = "activities"
 	ActivitiesFieldName        = "name"
+	ActivitiesFieldSlug        = "slug"
 	ActivitiesFieldDesc        = "desc"
 	ActivitiesFieldStart       = "start"
 	ActivitiesFieldEnd         = "end"
 	ActivitiesFieldVoteId      = "voteId"
 	ActivitiesFieldRewardGroup = "rewardGroup"
+	ActivitiesFieldHideInList  = "hideInList"
 )
 
 const (
