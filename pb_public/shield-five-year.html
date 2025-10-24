@@ -809,8 +809,8 @@
             await loadArticles('badge5year', 'activity3Votes');
         }
 
-        // 加载文章列表��关键词活动）
-        async function loadArticles(activityKey, containerId) {
+        // 加载文章列表（关键词活动）
+        async function loadArticles(activityKey, containerId, sortBy = 'votes', sortOrder = 'desc') {
             const activityId = ACTIVITY_IDS[activityKey];
             try {
                 const [articlesRes, statsRes] = await Promise.all([
@@ -825,7 +825,7 @@
                 const articlesData = await articlesRes.json();
                 const statsData = statsRes.ok ? await statsRes.json() : { stats: {} };
 
-                renderArticles(articlesData.items || [], statsData.stats || {}, activityId, containerId);
+                renderArticles(articlesData.items || [], statsData.stats || {}, activityId, containerId, activityKey, sortBy, sortOrder);
             } catch (error) {
                 console.error('加载文章失败:', error);
                 document.getElementById(containerId).innerHTML = '<p class="error">加载数据失败</p>';
