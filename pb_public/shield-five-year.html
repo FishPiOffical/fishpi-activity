@@ -106,6 +106,12 @@
             color: #333;
         }
 
+        .form-group label .required {
+            color: #dc3545;
+            margin-left: 4px;
+            font-weight: bold;
+        }
+
         .form-group input,
         .form-group textarea,
         .form-group select {
@@ -115,6 +121,24 @@
             border-radius: 6px;
             font-size: 1rem;
             font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input.error,
+        .form-group textarea.error {
+            border-color: #dc3545;
+            background-color: #fff5f5;
+        }
+
+        .form-group .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-group .error-message.show {
+            display: block;
         }
 
         .form-group textarea {
@@ -147,14 +171,46 @@
             margin: 10px 0;
         }
 
-        .shield-url {
-            background: white;
-            padding: 10px;
+        .collapsible-section {
+            margin: 20px 0;
+            border: 1px solid #ddd;
             border-radius: 6px;
-            word-break: break-all;
-            margin-top: 10px;
-            font-size: 0.9rem;
-            color: #666;
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s;
+        }
+
+        .collapsible-header:hover {
+            background: #e9ecef;
+        }
+
+        .collapsible-header .toggle-icon {
+            font-weight: bold;
+            transition: transform 0.3s;
+        }
+
+        .collapsible-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.active {
+            max-height: 2000px;
+            padding: 15px;
         }
 
         .btn {
@@ -311,12 +367,14 @@
 
             <div id="activity1Form" style="display: none;">
                 <div class="form-group">
-                    <label for="keyword">关键词</label>
-                    <input type="text" id="keyword" placeholder="请输入一个能代表摸鱼派五年的关键词" maxlength="50">
+                    <label for="keyword">关键词 <span class="required">*</span></label>
+                    <input type="text" id="keyword" placeholder="请输入一个能代表摸鱼派五年的关键词" maxlength="50" required>
+                    <div class="error-message" id="keywordError">请输入关键词</div>
                 </div>
                 <div class="form-group">
-                    <label for="keywordDesc">关键词介绍</label>
-                    <textarea id="keywordDesc" placeholder="请介绍这个关键词的含义以及为什么选择它..."></textarea>
+                    <label for="keywordDesc">关键词介绍 <span class="required">*</span></label>
+                    <textarea id="keywordDesc" placeholder="请介绍这个关键词的含义以及为什么选择它..." required></textarea>
+                    <div class="error-message" id="keywordDescError">请输入关键词介绍</div>
                 </div>
                 <button class="btn" onclick="submitKeyword()">提交关键词</button>
             </div>
@@ -334,8 +392,9 @@
 
             <div id="activity2Form" style="display: none;">
                 <div class="form-group">
-                    <label for="badge2025Title">设计标题</label>
-                    <input type="text" id="badge2025Title" placeholder="给您的配色方案起个名字" maxlength="50">
+                    <label for="badge2025Title">设计标题 <span class="required">*</span></label>
+                    <input type="text" id="badge2025Title" placeholder="给您的配色方案起个名字" maxlength="50" required>
+                    <div class="error-message" id="badge2025TitleError">请输入设计标题</div>
                 </div>
 
                 <div class="form-group">
@@ -345,19 +404,18 @@
 
                 <div class="color-input-group">
                     <div class="form-group">
-                        <label for="badge2025Back">背景色</label>
-                        <input type="color" id="badge2025Back" value="#db5a6b">
+                        <label for="badge2025Back">背景色 <span class="required">*</span></label>
+                        <input type="color" id="badge2025Back" value="#db5a6b" required>
                     </div>
                     <div class="form-group">
-                        <label for="badge2025Font">字体色</label>
-                        <input type="color" id="badge2025Font" value="#ffffff">
+                        <label for="badge2025Font">字体色 <span class="required">*</span></label>
+                        <input type="color" id="badge2025Font" value="#ffffff" required>
                     </div>
                 </div>
 
                 <div class="shield-preview">
                     <h4>徽章预览</h4>
                     <img id="badge2025Preview" src="" alt="徽章预览">
-                    <div class="shield-url" id="badge2025Url"></div>
                 </div>
 
                 <button class="btn" onclick="submitBadge2025()">提交配色方案</button>
@@ -376,8 +434,9 @@
 
             <div id="activity3Form" style="display: none;">
                 <div class="form-group">
-                    <label for="badge5yTitle">设计标题</label>
-                    <input type="text" id="badge5yTitle" placeholder="给您的徽章设计起个名字" maxlength="50">
+                    <label for="badge5yTitle">设计标题 <span class="required">*</span></label>
+                    <input type="text" id="badge5yTitle" placeholder="给您的徽章设计起个名字" maxlength="50" required>
+                    <div class="error-message" id="badge5yTitleError">请输入设计标题</div>
                 </div>
 
                 <div class="form-group">
@@ -398,62 +457,69 @@
 
                 <div class="color-input-group">
                     <div class="form-group">
-                        <label for="badge5yBack">背景色</label>
-                        <input type="color" id="badge5yBack" value="#db5a6b">
+                        <label for="badge5yBack">背景色 <span class="required">*</span></label>
+                        <input type="color" id="badge5yBack" value="#db5a6b" required>
                     </div>
                     <div class="form-group">
-                        <label for="badge5yFont">字体色</label>
-                        <input type="color" id="badge5yFont" value="#ffffff">
+                        <label for="badge5yFont">字体色 <span class="required">*</span></label>
+                        <input type="color" id="badge5yFont" value="#ffffff" required>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="badge5ySize">尺寸调整 (可选)</label>
-                    <input type="number" id="badge5ySize" placeholder="留空使用默认值" min="1" max="1000">
-                </div>
+                <div class="collapsible-section">
+                    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                        <span>高级选项 (可选)</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <div class="form-group">
+                            <label for="badge5ySize">尺寸调整</label>
+                            <input type="number" id="badge5ySize" placeholder="留空使用默认值" min="1" max="1000">
+                        </div>
 
-                <div class="form-group">
-                    <label for="badge5yBorder">边框宽度 (可选)</label>
-                    <input type="number" id="badge5yBorder" placeholder="留空使用默认值" min="0" max="50">
-                </div>
+                        <div class="form-group">
+                            <label for="badge5yBorder">边框宽度</label>
+                            <input type="number" id="badge5yBorder" placeholder="留空使用默认值" min="0" max="50">
+                        </div>
 
-                <div class="form-group">
-                    <label for="badge5yBarlen">条宽度 (可选)</label>
-                    <input type="number" id="badge5yBarlen" placeholder="留空使用默认值" min="1" max="1000">
-                </div>
+                        <div class="form-group">
+                            <label for="badge5yBarlen">条宽度</label>
+                            <input type="number" id="badge5yBarlen" placeholder="留空使用默认值" min="1" max="1000">
+                        </div>
 
-                <div class="form-group">
-                    <label for="badge5yFontsize">字体大小 (可选)</label>
-                    <input type="number" id="badge5yFontsize" placeholder="留空使用默认值" min="1" max="200">
-                </div>
+                        <div class="form-group">
+                            <label for="badge5yFontsize">字体大小</label>
+                            <input type="number" id="badge5yFontsize" placeholder="留空使用默认值" min="1" max="200">
+                        </div>
 
-                <div class="form-group">
-                    <label for="badge5yBarradius">圆角半径 (可选)</label>
-                    <input type="number" id="badge5yBarradius" placeholder="留空使用默认值" min="0" max="100">
-                </div>
+                        <div class="form-group">
+                            <label for="badge5yBarradius">圆角半径</label>
+                            <input type="number" id="badge5yBarradius" placeholder="留空使用默认值" min="0" max="100">
+                        </div>
 
-                <div class="form-group">
-                    <label for="badge5yShadow">阴影效果 (可选)</label>
-                    <select id="badge5yShadow">
-                        <option value="">默认</option>
-                        <option value="0">无阴影</option>
-                        <option value="1">有阴影</option>
-                    </select>
-                </div>
+                        <div class="form-group">
+                            <label for="badge5yShadow">阴影效果</label>
+                            <select id="badge5yShadow">
+                                <option value="">默认</option>
+                                <option value="0">无阴影</option>
+                                <option value="1">有阴影</option>
+                            </select>
+                        </div>
 
-                <div class="form-group">
-                    <label for="badge5yAnime">动画效果 (可选)</label>
-                    <select id="badge5yAnime">
-                        <option value="">默认</option>
-                        <option value="0">无动画</option>
-                        <option value="1">有动画</option>
-                    </select>
+                        <div class="form-group">
+                            <label for="badge5yAnime">动画效果</label>
+                            <select id="badge5yAnime">
+                                <option value="">默认</option>
+                                <option value="0">无动画</option>
+                                <option value="1">有动画</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="shield-preview">
                     <h4>徽章预览</h4>
                     <img id="badge5yPreview" src="" alt="徽章预览">
-                    <div class="shield-url" id="badge5yPreviewUrl"></div>
                 </div>
 
                 <button class="btn" onclick="submitBadge5Year()">提交设计方案</button>
@@ -531,11 +597,25 @@
 
         // 设置事件监听器
         function setupEventListeners() {
-            // 活动二：2025流行色预览
+            // 活动一：关键词字段验证
+            document.getElementById('keyword').addEventListener('blur', function() {
+                validateField('keyword', 'keywordError', '请输入关键词');
+            });
+            document.getElementById('keywordDesc').addEventListener('blur', function() {
+                validateField('keywordDesc', 'keywordDescError', '请输入关键词介绍');
+            });
+
+            // 活动二：2025流行色预览和验证
+            document.getElementById('badge2025Title').addEventListener('blur', function() {
+                validateField('badge2025Title', 'badge2025TitleError', '请输入设计标题');
+            });
             document.getElementById('badge2025Back').addEventListener('input', updateBadge2025Preview);
             document.getElementById('badge2025Font').addEventListener('input', updateBadge2025Preview);
 
-            // 活动三：五周岁徽章预览
+            // 活动三：五周岁徽章验证和预览
+            document.getElementById('badge5yTitle').addEventListener('blur', function() {
+                validateField('badge5yTitle', 'badge5yTitleError', '请输入设计标题');
+            });
             ['badge5yUrl', 'badge5yBack', 'badge5yFont', 'badge5ySize', 'badge5yBorder',
              'badge5yBarlen', 'badge5yFontsize', 'badge5yBarradius', 'badge5yShadow', 'badge5yAnime'].forEach(id => {
                 const element = document.getElementById(id);
@@ -547,6 +627,31 @@
             updateBadge5YearPreview();
         }
 
+        // 验证字段
+        function validateField(fieldId, errorId, errorMessage) {
+            const field = document.getElementById(fieldId);
+            const error = document.getElementById(errorId);
+            const value = field.value.trim();
+
+            if (!value) {
+                field.classList.add('error');
+                error.classList.add('show');
+                error.textContent = errorMessage;
+                return false;
+            } else {
+                field.classList.remove('error');
+                error.classList.remove('show');
+                return true;
+            }
+        }
+
+        // 切换折叠区域
+        function toggleCollapsible(header) {
+            header.classList.toggle('active');
+            const content = header.nextElementSibling;
+            content.classList.toggle('active');
+        }
+
         // 更新2025徽章预览
         function updateBadge2025Preview() {
             const backcolor = document.getElementById('badge2025Back').value.substring(1);
@@ -555,7 +660,6 @@
             const url = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=2025&url=${encodeURIComponent(defaultImage)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
 
             document.getElementById('badge2025Preview').src = url;
-            document.getElementById('badge2025Url').textContent = url;
         }
 
         // 更新五周岁徽章预览
@@ -589,7 +693,6 @@
             });
 
             document.getElementById('badge5yPreview').src = genUrl;
-            document.getElementById('badge5yPreviewUrl').textContent = genUrl;
         }
 
         // 处理图片上传
@@ -635,13 +738,17 @@
                 return;
             }
 
+            // 验证必填字段
+            const keywordValid = validateField('keyword', 'keywordError', '请输入关键词');
+            const descValid = validateField('keywordDesc', 'keywordDescError', '请输入关键词介绍');
+
+            if (!keywordValid || !descValid) {
+                return;
+            }
+
             const keyword = document.getElementById('keyword').value.trim();
             const desc = document.getElementById('keywordDesc').value.trim();
 
-            if (!keyword || !desc) {
-                alert('请填写完整的关键词和介绍');
-                return;
-            }
 
             try {
                 const response = await fetch('/activity-api/shield-five-year/articles', {
@@ -678,15 +785,18 @@
                 return;
             }
 
+            // 验证必填字段
+            const titleValid = validateField('badge2025Title', 'badge2025TitleError', '请输入设计标题');
+
+            if (!titleValid) {
+                return;
+            }
+
             const title = document.getElementById('badge2025Title').value.trim();
             const note = document.getElementById('badge2025Note').value.trim();
             const backcolor = document.getElementById('badge2025Back').value.substring(1);
             const fontcolor = document.getElementById('badge2025Font').value.substring(1);
 
-            if (!title) {
-                alert('请填写设计标题');
-                return;
-            }
 
             try {
                 const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
@@ -755,6 +865,13 @@
                 return;
             }
 
+            // 验证必填字段
+            const titleValid = validateField('badge5yTitle', 'badge5yTitleError', '请输入设计标题');
+
+            if (!titleValid) {
+                return;
+            }
+
             const title = document.getElementById('badge5yTitle').value.trim();
             const note = document.getElementById('badge5yNote').value.trim();
             const text = '摸鱼派5岁啦';
@@ -773,10 +890,6 @@
             const backcolor = document.getElementById('badge5yBack').value.substring(1);
             const fontcolor = document.getElementById('badge5yFont').value.substring(1);
 
-            if (!title) {
-                alert('请填写设计标题');
-                return;
-            }
 
             const shieldData = {
                 activityId: ACTIVITY_IDS.badge5year,
