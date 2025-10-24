@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -399,11 +400,10 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 	// 如果没有提供voteId，通过activityId查找
 	voteId := data.VoteId
 	if voteId == "" && data.ActivityId != "" {
-		activity, err := controller.app.FindRecordById(model.DbNameActivities, data.ActivityId)
-		if err != nil {
+		activityModel := new(model.Activity)
+		if err := controller.app.RecordQuery(model.DbNameActivities).Where(dbx.HashExp{model.CommonFieldId: data.ActivityId}).One(activityModel); err != nil {
 			return e.BadRequestError("活动不存在", err)
 		}
-		activityModel := model.NewActivity(activity)
 		voteId = activityModel.VoteId()
 
 		if voteId == "" {
@@ -416,43 +416,33 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 	}
 
 	// 检查是否已经投过票
-	existing, _ := controller.app.FindFirstRecordByFilter(
-		model.DbNameVoteLogs,
-		"voteId = {:voteId} && fromUserId = {:fromUserId} && toUserId = {:toUserId}",
-		map[string]any{
-			"voteId":     voteId,
-			"fromUserId": user.Id,
-			"toUserId":   data.ToUserId,
-		},
-	)
+	var existingVoteLogs []*model.VoteLog
+	if err := controller.app.RecordQuery(model.DbNameVoteLogs).Where(dbx.HashExp{
+		model.VoteLogsFieldVoteId:     voteId,
+		model.VoteLogsFieldFromUserId: user.Id,
+		model.VoteLogsFieldToUserId:   data.ToUserId,
+	}).All(&existingVoteLogs); err != nil {
+		return e.BadRequestError("检查是否已投票失败", err)
+	}
 
-	if existing != nil {
+	if len(existingVoteLogs) > 0 {
 		return e.BadRequestError("您已经为该作品投过票了", nil)
 	}
 
 	// 获取投票配置，检查投票次数限制
-	vote, err := controller.app.FindRecordById(model.DbNameVotes, voteId)
-	if err != nil {
+	voteConfig := new(model.Vote)
+	if err := controller.app.RecordQuery(model.DbNameVotes).Where(dbx.HashExp{model.CommonFieldId: voteId}).One(voteConfig); err != nil {
 		return e.BadRequestError("投票活动不存在", err)
 	}
 
-	voteConfig := model.NewVote(vote)
-	voteTimes := voteConfig.GetInt(model.VotesFieldTimes)
+	voteTimes := voteConfig.Times()
 
 	// 检查用户已投票次数
-	userVoteLogs, err := controller.app.FindRecordsByFilter(
-		model.DbNameVoteLogs,
-		"voteId = {:voteId} && fromUserId = {:fromUserId}",
-		"",
-		0,
-		0,
-		map[string]any{
-			"voteId":     voteId,
-			"fromUserId": user.Id,
-		},
-	)
-
-	if err != nil {
+	var userVoteLogs []*model.VoteLog
+	if err := controller.app.RecordQuery(model.DbNameVoteLogs).Where(dbx.HashExp{
+		model.VoteLogsFieldVoteId:     voteId,
+		model.VoteLogsFieldFromUserId: user.Id,
+	}).All(&userVoteLogs); err != nil {
 		return e.InternalServerError("检查投票次数失败", err)
 	}
 
