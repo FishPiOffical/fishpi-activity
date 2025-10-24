@@ -31,20 +31,21 @@ func NewShieldFiveYearController(event *core.ServeEvent) *ShieldFiveYearControll
 }
 
 func (controller *ShieldFiveYearController) registerRoutes() {
-	group := controller.event.Router.Group("/api/shield-five-year")
+	slog.Info("注册路由")
+	group := controller.event.Router.Group("/activity-api/shield-five-year")
 
 	// 徽章相关接口
 	group.POST("/shields", controller.CreateShield).BindFunc(controller.CheckLogin)
-	group.GET("/shields/:activityId", controller.GetShieldsByActivity)
+	group.GET("/shields/{activityId}", controller.GetShieldsByActivity)
 
 	// 文章相关接口（关键词活动）
 	group.POST("/articles", controller.CreateArticle).BindFunc(controller.CheckLogin)
-	group.GET("/articles/:activityId", controller.GetArticlesByActivity)
+	group.GET("/articles/{activityId}", controller.GetArticlesByActivity)
 
 	// 投票相关接口
 	group.POST("/vote", controller.Vote).BindFunc(controller.CheckLogin)
-	group.GET("/votes/:activityId", controller.GetVotesByActivity)
-	group.GET("/vote-stats/:activityId", controller.GetVoteStats)
+	group.GET("/votes/{activityId}", controller.GetVotesByActivity)
+	group.GET("/vote-stats/{activityId}", controller.GetVoteStats)
 }
 
 func (controller *ShieldFiveYearController) CheckLogin(event *core.RequestEvent) error {

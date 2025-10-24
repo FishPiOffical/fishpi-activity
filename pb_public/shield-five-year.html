@@ -644,7 +644,7 @@
             }
 
             try {
-                const response = await fetch('/api/shield-five-year/articles', {
+                const response = await fetch('/activity-api/shield-five-year/articles', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -690,7 +690,7 @@
 
             try {
                 const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
-                const response = await fetch('/api/shield-five-year/shields', {
+                const response = await fetch('/activity-api/shield-five-year/shields', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -776,7 +776,7 @@
             });
 
             try {
-                const response = await fetch('/api/shield-five-year/shields', {
+                const response = await fetch('/activity-api/shield-five-year/shields', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -811,8 +811,8 @@
             const activityId = ACTIVITY_IDS[activityKey];
             try {
                 const [articlesRes, statsRes] = await Promise.all([
-                    fetch(`/api/shield-five-year/articles/${activityId}`),
-                    fetch(`/api/shield-five-year/vote-stats/${activityId}`)
+                    fetch(`/activity-api/shield-five-year/articles/${activityId}`),
+                    fetch(`/activity-api/shield-five-year/vote-stats/${activityId}`)
                 ]);
 
                 if (!articlesRes.ok) {
@@ -872,8 +872,8 @@
             const activityId = ACTIVITY_IDS[activityKey];
             try {
                 const [shieldsRes, statsRes] = await Promise.all([
-                    fetch(`/api/shield-five-year/shields/${activityId}`),
-                    fetch(`/api/shield-five-year/vote-stats/${activityId}`)
+                    fetch(`/activity-api/shield-five-year/shields/${activityId}`),
+                    fetch(`/activity-api/shield-five-year/vote-stats/${activityId}`)
                 ]);
 
                 if (!shieldsRes.ok) {
@@ -963,7 +963,7 @@
                     voteId = activityId; // 临时使用，后端会处理
                 }
 
-                const response = await fetch('/api/shield-five-year/vote', {
+                const response = await fetch('/activity-api/shield-five-year/vote', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
