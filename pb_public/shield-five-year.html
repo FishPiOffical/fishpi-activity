@@ -595,6 +595,50 @@
             }
         }
 
+        // 防抖函数
+        function debounce(fn, delay) {
+            let timer = null;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        // 原预览函数
+        function updateBadge2025Preview() {
+            const backcolor = document.getElementById('badge2025Back').value.substring(1);
+            const fontcolor = document.getElementById('badge2025Font').value.substring(1);
+            const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
+            const url = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=2025&url=${encodeURIComponent(defaultImage)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
+            document.getElementById('badge2025Preview').src = url;
+        }
+        // 原预览函数
+        function updateBadge5YearPreview() {
+            const txt = '摸鱼派5岁啦';
+            let url = document.getElementById('badge5yUrl').value;
+            if (!url && currentUser && currentUser.avatar) {
+                url = currentUser.avatar;
+            }
+            if (!url) {
+                url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+            }
+            const backcolor = document.getElementById('badge5yBack').value.substring(1);
+            const fontcolor = document.getElementById('badge5yFont').value.substring(1);
+            let genUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(txt)}&url=${encodeURIComponent(url)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
+            const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+            optionalParams.forEach(param => {
+                const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
+                const value = document.getElementById(inputId).value;
+                if (value !== '') {
+                    genUrl += `&${param}=${value}`;
+                }
+            });
+            document.getElementById('badge5yPreview').src = genUrl;
+        }
+        // 包装为防抖版本
+        const debouncedUpdateBadge2025Preview = debounce(updateBadge2025Preview, 600);
+        const debouncedUpdateBadge5YearPreview = debounce(updateBadge5YearPreview, 600);
+
         // 设置事件监听器
         function setupEventListeners() {
             // 活动一：关键词字段验证
@@ -609,8 +653,8 @@
             document.getElementById('badge2025Title').addEventListener('blur', function() {
                 validateField('badge2025Title', 'badge2025TitleError', '请输入设计标题');
             });
-            document.getElementById('badge2025Back').addEventListener('input', updateBadge2025Preview);
-            document.getElementById('badge2025Font').addEventListener('input', updateBadge2025Preview);
+            document.getElementById('badge2025Back').addEventListener('input', debouncedUpdateBadge2025Preview);
+            document.getElementById('badge2025Font').addEventListener('input', debouncedUpdateBadge2025Preview);
 
             // 活动三：五周岁徽章验证和预览
             document.getElementById('badge5yTitle').addEventListener('blur', function() {
@@ -619,7 +663,7 @@
             ['badge5yUrl', 'badge5yBack', 'badge5yFont', 'badge5ySize', 'badge5yBorder',
              'badge5yBarlen', 'badge5yFontsize', 'badge5yBarradius', 'badge5yShadow', 'badge5yAnime'].forEach(id => {
                 const element = document.getElementById(id);
-                element.addEventListener('input', updateBadge5YearPreview);
+                element.addEventListener('input', debouncedUpdateBadge5YearPreview);
             });
 
             // 初始预览
