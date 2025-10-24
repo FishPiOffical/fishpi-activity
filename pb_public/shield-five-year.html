@@ -120,6 +120,45 @@
         .btn-warning { background: #ffc107; color: #333; }
         .btn-warning:hover { background: #e0a800; }
         .btn-small { padding: 6px 12px; font-size: 0.875rem; }
+        /* 用户投稿展示 */
+        .my-submission-display {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .my-submission-display h4 {
+            color: #ff9800;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .my-submission-display .submission-content {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .my-submission-display .submission-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .my-submission-display .submission-text {
+            color: #666;
+            line-height: 1.6;
+        }
+        .my-submission-display .submission-shield {
+            margin: 15px 0;
+            text-align: center;
+        }
+        .my-submission-display .submission-shield img {
+            max-width: 100%;
+            height: auto;
+        }
         @media (max-width: 768px) {
             header h1 { font-size: 1.8rem; }
             .color-input-group { grid-template-columns: 1fr; }
@@ -144,6 +183,7 @@
         <div class="activity-section" id="activity1">
             <h2>📝 活动一：五周年关键词</h2>
             <p>用一个关键词定义摸鱼派的这五年！发表文章，标题为您的关键词，内容为关键词介绍。</p>
+            <div id="activity1Submission" style="display: none;"></div>
             <div id="activity1Form" style="display: none;">
                 <div class="form-group">
                     <label for="keyword">关键词 <span class="required">*</span></label>
@@ -166,6 +206,7 @@
         <div class="activity-section" id="activity2">
             <h2>🎨 活动二：2025流行色</h2>
             <p>为"2025徽章"设计您心目中的流行配色方案！</p>
+            <div id="activity2Submission" style="display: none;"></div>
             <div id="activity2Form" style="display: none;">
                 <div class="form-group">
                     <label for="badge2025Title">设计标题 <span class="required">*</span></label>
@@ -201,6 +242,7 @@
         <div class="activity-section" id="activity3">
             <h2>🏆 活动三：五周岁徽章设计</h2>
             <p>设计"摸鱼派5岁啦"专属徽章！除了名称固定外，其他元素都可以自由定制。</p>
+            <div id="activity3Submission" style="display: none;"></div>
             <div id="activity3Form" style="display: none;">
                 <div class="form-group">
                     <label for="badge5yTitle">设计标题 <span class="required">*</span></label>
@@ -321,6 +363,7 @@
                 await loadUserSubmissions();
                 await loadUserVotes();
                 await loadVoteQuotas();
+                showForms(); // 在加载完数据后再显示表单
             }
             setupEventListeners();
             loadAllVotes();
@@ -337,7 +380,6 @@
                         <span>欢迎，${escapeHtml(currentUser.nickname || currentUser.name)}</span>
                         <a href="/user/logout">退出登录</a>
                     `;
-                    showForms();
                 } else {
                     isLoggedIn = false;
                     document.getElementById('userDisplay').innerHTML = `
@@ -361,10 +403,14 @@
                 const response = await fetch('/activity-api/shield-five-year/my-articles');
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('用户投稿数据:', data); // 调试日志
                     if (data.items) {
                         data.items.forEach(article => {
+                            console.log('文章数据:', article); // 调试日志
+                            console.log('activityId:', article.activityId); // 调试日志
                             userSubmissions[article.activityId] = article;
                         });
+                        console.log('userSubmissions:', userSubmissions); // 调试日志
                     }
                 }
             } catch (error) {
@@ -407,23 +453,31 @@
 
         // 显示表单
         function showForms() {
-            // 检查各活动是否已投稿，如果已投稿则隐藏表单
+            // 活动一：关键词
             if (userSubmissions[ACTIVITY_IDS.keyword]) {
                 document.getElementById('activity1Form').style.display = 'none';
+                displayMySubmission('keyword', userSubmissions[ACTIVITY_IDS.keyword], 'activity1Submission');
             } else {
                 document.getElementById('activity1Form').style.display = 'block';
+                document.getElementById('activity1Submission').style.display = 'none';
             }
 
+            // 活动二：2025流行色
             if (userSubmissions[ACTIVITY_IDS.badge2025]) {
                 document.getElementById('activity2Form').style.display = 'none';
+                displayMySubmission('badge2025', userSubmissions[ACTIVITY_IDS.badge2025], 'activity2Submission');
             } else {
                 document.getElementById('activity2Form').style.display = 'block';
+                document.getElementById('activity2Submission').style.display = 'none';
             }
 
+            // 活动三：五周岁徽章
             if (userSubmissions[ACTIVITY_IDS.badge5year]) {
                 document.getElementById('activity3Form').style.display = 'none';
+                displayMySubmission('badge5year', userSubmissions[ACTIVITY_IDS.badge5year], 'activity3Submission');
             } else {
                 document.getElementById('activity3Form').style.display = 'block';
+                document.getElementById('activity3Submission').style.display = 'none';
             }
 
             // 设置用户头像作为默认徽章图片的占位符
@@ -434,6 +488,50 @@
                     urlInput.placeholder = `默认使用您的头像: ${currentUser.avatar}`;
                 }
             }
+        }
+
+        // 显示用户的投稿内容
+        function displayMySubmission(activityKey, submission, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || !submission) return;
+
+            let shieldHtml = '';
+            if (submission.shield) {
+                const shield = submission.shield;
+                let shieldUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(shield.text || '')}&backcolor=${shield.backcolor || ''}&fontcolor=${shield.fontcolor || ''}`;
+                if (shield.url) {
+                    shieldUrl += `&url=${encodeURIComponent(shield.url)}`;
+                }
+                // 添加可选参数
+                const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+                optionalParams.forEach(param => {
+                    if (shield[param] !== undefined && shield[param] !== '') {
+                        shieldUrl += `&${param}=${shield[param]}`;
+                    }
+                });
+                shieldHtml = `
+                    <div class="submission-shield">
+                        <img src="${shieldUrl}" alt="徽章" referrerpolicy="no-referrer">
+                    </div>
+                `;
+            }
+
+            const html = `
+                <div class="my-submission-display">
+                    <h4>
+                        <span>✨ 您的投稿</span>
+                        <button class="btn btn-warning btn-small" onclick="editSubmission('${activityKey}', '${submission.id}')">编辑</button>
+                    </h4>
+                    <div class="submission-content">
+                        <div class="submission-title">${escapeHtml(submission.title)}</div>
+                        ${shieldHtml}
+                        <div class="submission-text">${escapeHtml(submission.content)}</div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            container.style.display = 'block';
         }
 
         // 防抖函数
