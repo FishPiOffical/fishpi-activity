@@ -418,8 +418,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="badge5yBarLen">条宽度 (可选)</label>
-                    <input type="number" id="badge5yBarLen" placeholder="留空使用默认值" min="1" max="1000">
+                    <label for="badge5yBarlen">条宽度 (可选)</label>
+                    <input type="number" id="badge5yBarlen" placeholder="留空使用默认值" min="1" max="1000">
                 </div>
 
                 <div class="form-group">
@@ -428,8 +428,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="badge5yBarRadius">圆角半径 (可选)</label>
-                    <input type="number" id="badge5yBarRadius" placeholder="留空使用默认值" min="0" max="100">
+                    <label for="badge5yBarradius">圆角半径 (可选)</label>
+                    <input type="number" id="badge5yBarradius" placeholder="留空使用默认值" min="0" max="100">
                 </div>
 
                 <div class="form-group">
@@ -453,7 +453,7 @@
                 <div class="shield-preview">
                     <h4>徽章预览</h4>
                     <img id="badge5yPreview" src="" alt="徽章预览">
-                    <div class="shield-url" id="badge5yUrl"></div>
+                    <div class="shield-url" id="badge5yPreviewUrl"></div>
                 </div>
 
                 <button class="btn" onclick="submitBadge5Year()">提交设计方案</button>
@@ -523,6 +523,7 @@
             if (currentUser && currentUser.avatar) {
                 const urlInput = document.getElementById('badge5yUrl');
                 if (!urlInput.value) {
+                    urlInput.value = currentUser.avatar;
                     urlInput.placeholder = `默认使用您的头像: ${currentUser.avatar}`;
                 }
             }
@@ -536,7 +537,7 @@
 
             // 活动三：五周岁徽章预览
             ['badge5yUrl', 'badge5yBack', 'badge5yFont', 'badge5ySize', 'badge5yBorder',
-             'badge5yBarLen', 'badge5yFontsize', 'badge5yBarRadius', 'badge5yShadow', 'badge5yAnime'].forEach(id => {
+             'badge5yBarlen', 'badge5yFontsize', 'badge5yBarradius', 'badge5yShadow', 'badge5yAnime'].forEach(id => {
                 const element = document.getElementById(id);
                 element.addEventListener('input', updateBadge5YearPreview);
             });
@@ -588,7 +589,7 @@
             });
 
             document.getElementById('badge5yPreview').src = genUrl;
-            document.getElementById('badge5yUrl').textContent = genUrl;
+            document.getElementById('badge5yPreviewUrl').textContent = genUrl;
         }
 
         // 处理图片上传
@@ -627,7 +628,7 @@
             }
         }
 
-        // 提交关键词
+        // 提交关键��
         async function submitKeyword() {
             if (!isLoggedIn) {
                 alert('请先登录');
@@ -998,4 +999,3 @@
     </script>
 </body>
 </html>
-
