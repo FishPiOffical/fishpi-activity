@@ -37,15 +37,22 @@ func (controller *ShieldFiveYearController) registerRoutes() {
 	// 徽章相关接口
 	group.POST("/shields", controller.CreateShield).BindFunc(controller.CheckLogin)
 	group.GET("/shields/{activityId}", controller.GetShieldsByActivity)
+	group.PATCH("/shields/{id}", controller.UpdateShield).BindFunc(controller.CheckLogin)
 
 	// 文章相关接口（关键词活动）
 	group.POST("/articles", controller.CreateArticle).BindFunc(controller.CheckLogin)
 	group.GET("/articles/{activityId}", controller.GetArticlesByActivity)
+	group.PATCH("/articles/{id}", controller.UpdateArticle).BindFunc(controller.CheckLogin)
+	group.GET("/my-articles", controller.GetMyArticles).BindFunc(controller.CheckLogin)
 
 	// 投票相关接口
 	group.POST("/vote", controller.Vote).BindFunc(controller.CheckLogin)
+	group.DELETE("/vote/{id}", controller.DeleteVote).BindFunc(controller.CheckLogin)
 	group.GET("/votes/{activityId}", controller.GetVotesByActivity)
 	group.GET("/vote-stats/{activityId}", controller.GetVoteStats)
+	group.GET("/my-votes", controller.GetMyVotes).BindFunc(controller.CheckLogin)
+	group.GET("/vote-quota/{activityId}", controller.GetVoteQuota).BindFunc(controller.CheckLogin)
+	group.GET("/vote-details/{activityId}/{userId}", controller.GetVoteDetails)
 }
 
 func (controller *ShieldFiveYearController) CheckLogin(event *core.RequestEvent) error {
@@ -594,5 +601,327 @@ func (controller *ShieldFiveYearController) GetVoteStats(e *core.RequestEvent) e
 
 	return e.JSON(http.StatusOK, map[string]any{
 		"stats": stats,
+	})
+}
+
+// UpdateShield 更新徽章
+func (controller *ShieldFiveYearController) UpdateShield(e *core.RequestEvent) error {
+	id := e.Request.PathValue("id")
+	authRecord := e.Auth
+
+	// 查找徽章记录
+	record, err := controller.app.FindRecordById(model.DbNameShields, id)
+	if err != nil {
+		return e.NotFoundError("徽章不存在", err)
+	}
+
+	shield := model.NewShield(record)
+
+	// 检查权限：只能更新自己的徽章
+	if shield.GetString("userId") != authRecord.Id {
+		return e.ForbiddenError("无权限更新此徽章", nil)
+	}
+
+	// 解析请求体
+	var data map[string]any
+	if err := e.BindBody(&data); err != nil {
+		return e.BadRequestError("参数错误", err)
+	}
+
+	// 更新字段
+	for key, value := range data {
+		record.Set(key, value)
+	}
+
+	if err := controller.app.Save(record); err != nil {
+		return e.InternalServerError("更新徽章失败", err)
+	}
+
+	return e.JSON(http.StatusOK, record)
+}
+
+// UpdateArticle 更新文章
+func (controller *ShieldFiveYearController) UpdateArticle(e *core.RequestEvent) error {
+	id := e.Request.PathValue("id")
+	authRecord := e.Auth
+
+	// 查找文章记录
+	record, err := controller.app.FindRecordById(model.DbNameArticles, id)
+	if err != nil {
+		return e.NotFoundError("文章不存在", err)
+	}
+
+	article := model.NewArticle(record)
+
+	// 检查权限：只能更新自己的文章
+	if article.UserId() != authRecord.Id {
+		return e.ForbiddenError("无权限更新此文章", nil)
+	}
+
+	// 解析请求体
+	var data map[string]any
+	if err := e.BindBody(&data); err != nil {
+		return e.BadRequestError("参数错误", err)
+	}
+
+	// 更新字段
+	for key, value := range data {
+		record.Set(key, value)
+	}
+
+	if err := controller.app.Save(record); err != nil {
+		return e.InternalServerError("更新文章失败", err)
+	}
+
+	return e.JSON(http.StatusOK, record)
+}
+
+// GetMyArticles 获取当前用户的投稿
+func (controller *ShieldFiveYearController) GetMyArticles(e *core.RequestEvent) error {
+	authRecord := e.Auth
+
+	records, err := controller.app.FindRecordsByFilter(
+		model.DbNameArticles,
+		"userId = {:userId}",
+		"",
+		0,
+		0,
+		map[string]any{
+			"userId": authRecord.Id,
+		},
+	)
+
+	if err != nil {
+		return e.InternalServerError("获取投稿失败", err)
+	}
+
+	// 扩展用户和徽章信息
+	result := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		article := model.NewArticle(record)
+		data := record.PublicExport()
+
+		// 获取用户信息
+		if userRecord, err := controller.app.FindRecordById(model.DbNameUsers, article.UserId()); err == nil {
+			user := model.NewUser(userRecord)
+			data["user"] = map[string]any{
+				"id":       user.Id,
+				"name":     user.Name(),
+				"nickname": user.Nickname(),
+				"avatar":   user.Avatar(),
+			}
+		}
+
+		// 获取徽章信息
+		if article.ShieldId() != "" {
+			if shieldRecord, err := controller.app.FindRecordById(model.DbNameShields, article.ShieldId()); err == nil {
+				data["shield"] = shieldRecord.PublicExport()
+			}
+		}
+
+		result = append(result, data)
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"items": result,
+	})
+}
+
+// GetMyVotes 获取当前用户的投票记录
+func (controller *ShieldFiveYearController) GetMyVotes(e *core.RequestEvent) error {
+	authRecord := e.Auth
+
+	records, err := controller.app.FindRecordsByFilter(
+		model.DbNameVoteLogs,
+		"fromUserId = {:userId}",
+		"",
+		0,
+		0,
+		map[string]any{
+			"userId": authRecord.Id,
+		},
+	)
+
+	if err != nil {
+		return e.InternalServerError("获取投票记录失败", err)
+	}
+
+	// 扩展信息：获取每个投票对应的活动ID
+	result := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		voteLog := model.NewVoteLog(record)
+		data := record.PublicExport()
+
+		// 通过voteId查找对应的活动
+		activities, err := controller.app.FindRecordsByFilter(
+			model.DbNameActivities,
+			"voteId = {:voteId}",
+			"",
+			1,
+			0,
+			map[string]any{
+				"voteId": voteLog.VoteId(),
+			},
+		)
+
+		if err == nil && len(activities) > 0 {
+			data["activityId"] = activities[0].Id
+		}
+
+		result = append(result, data)
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"items": result,
+	})
+}
+
+// GetVoteQuota 获取投票配额
+func (controller *ShieldFiveYearController) GetVoteQuota(e *core.RequestEvent) error {
+	activityId := e.Request.PathValue("activityId")
+	authRecord := e.Auth
+
+	// 获取活动信息
+	activity, err := controller.app.FindRecordById(model.DbNameActivities, activityId)
+	if err != nil {
+		return e.BadRequestError("活动不存在", err)
+	}
+
+	activityModel := model.NewActivity(activity)
+	voteId := activityModel.VoteId()
+
+	if voteId == "" {
+		return e.JSON(http.StatusOK, map[string]any{
+			"total":     0,
+			"used":      0,
+			"remaining": 0,
+		})
+	}
+
+	// 获取投票配置
+	vote, err := controller.app.FindRecordById(model.DbNameVotes, voteId)
+	if err != nil {
+		return e.BadRequestError("投票不存在", err)
+	}
+
+	voteModel := model.NewVote(vote)
+	maxVotes := voteModel.GetInt(model.VotesFieldTimes)
+
+	// 统计已使用的票数
+	usedVotes, err := controller.app.FindRecordsByFilter(
+		model.DbNameVoteLogs,
+		"voteId = {:voteId} && fromUserId = {:userId}",
+		"",
+		0,
+		0,
+		map[string]any{
+			"voteId": voteId,
+			"userId": authRecord.Id,
+		},
+	)
+
+	if err != nil {
+		return e.InternalServerError("获取已投票数失败", err)
+	}
+
+	remaining := maxVotes - len(usedVotes)
+	if remaining < 0 {
+		remaining = 0
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"total":     maxVotes,
+		"used":      len(usedVotes),
+		"remaining": remaining,
+	})
+}
+
+// GetVoteDetails 获取投票详情
+func (controller *ShieldFiveYearController) GetVoteDetails(e *core.RequestEvent) error {
+	activityId := e.Request.PathValue("activityId")
+	userId := e.Request.PathValue("userId")
+
+	// 获取活动信息
+	activity, err := controller.app.FindRecordById(model.DbNameActivities, activityId)
+	if err != nil {
+		return e.BadRequestError("活动不存在", err)
+	}
+
+	activityModel := model.NewActivity(activity)
+	voteId := activityModel.VoteId()
+
+	if voteId == "" {
+		return e.JSON(http.StatusOK, map[string]any{
+			"voters": []any{},
+		})
+	}
+
+	// 获取给该用户投票的所有记录
+	records, err := controller.app.FindRecordsByFilter(
+		model.DbNameVoteLogs,
+		"voteId = {:voteId} && toUserId = {:toUserId}",
+		"-created",
+		0,
+		0,
+		map[string]any{
+			"voteId":   voteId,
+			"toUserId": userId,
+		},
+	)
+
+	if err != nil {
+		return e.InternalServerError("获取投票详情失败", err)
+	}
+
+	// 扩展投票人信息
+	result := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		voteLog := model.NewVoteLog(record)
+		data := record.PublicExport()
+
+		// 获取投票人信息
+		if userRecord, err := controller.app.FindRecordById(model.DbNameUsers, voteLog.FromUserId()); err == nil {
+			user := model.NewUser(userRecord)
+			data["user"] = map[string]any{
+				"id":       user.Id,
+				"name":     user.Name(),
+				"nickname": user.Nickname(),
+				"avatar":   user.Avatar(),
+			}
+		}
+
+		result = append(result, data)
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"voters": result,
+	})
+}
+
+// DeleteVote 删除投票（取消投票）
+func (controller *ShieldFiveYearController) DeleteVote(e *core.RequestEvent) error {
+	id := e.Request.PathValue("id")
+	authRecord := e.Auth
+
+	// 查找投票记录
+	record, err := controller.app.FindRecordById(model.DbNameVoteLogs, id)
+	if err != nil {
+		return e.NotFoundError("投票记录不存在", err)
+	}
+
+	voteLog := model.NewVoteLog(record)
+
+	// 检查权限：只能删除自己的投票
+	if voteLog.FromUserId() != authRecord.Id {
+		return e.ForbiddenError("无权限删除此投票", nil)
+	}
+
+	// 删除投票记录
+	if err := controller.app.Delete(record); err != nil {
+		return e.InternalServerError("删除投票失败", err)
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"message": "投票已取消",
 	})
 }

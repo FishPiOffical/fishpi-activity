@@ -84,13 +84,42 @@
         .vote-item { border: 2px solid #eee; border-radius: 8px; padding: 15px; transition: all 0.3s; }
         .vote-item:hover { border-color: #667eea; box-shadow: 0 5px 15px rgba(102,126,234,0.2); }
         .vote-item.voted { border-color: #4CAF50; background: #f1f8f4; }
+        .vote-item.my-submission { border-color: #ff9800; background: #fff3e0; }
         .vote-item-header { display: flex; align-items: center; margin-bottom: 10px; }
         .vote-item-avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; }
         .vote-item-name { font-weight: 600; color: #333; }
         .vote-item-content { margin: 10px 0; color: #666; }
         .vote-item-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-        .vote-count { color: #667eea; font-weight: 600; }
+        .vote-count { color: #667eea; font-weight: 600; cursor: pointer; text-decoration: underline; }
+        .vote-count:hover { color: #5568d3; }
         .error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; margin-bottom: 15px; }
+        /* 排序和票数信息 */
+        .sort-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .sort-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+        .sort-btn { background: #f8f9fa; color: #333; border: 1px solid #ddd; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: all 0.3s; }
+        .sort-btn:hover { background: #e9ecef; }
+        .sort-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        .vote-info { background: #e3f2fd; padding: 10px 15px; border-radius: 6px; color: #1976d2; font-weight: 600; }
+        /* 投票详情模态框 */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal.show { display: flex; justify-content: center; align-items: center; }
+        .modal-content { background: white; border-radius: 12px; padding: 30px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h3 { margin: 0; color: #333; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; }
+        .modal-close:hover { color: #333; }
+        .voter-list { list-style: none; padding: 0; }
+        .voter-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .voter-item:last-child { border-bottom: none; }
+        .voter-avatar { width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; }
+        .voter-name { color: #333; }
+        .voter-time { color: #999; font-size: 0.875rem; margin-left: auto; }
+        /* 编辑按钮 */
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-small { padding: 6px 12px; font-size: 0.875rem; }
         @media (max-width: 768px) {
             header h1 { font-size: 1.8rem; }
             .color-input-group { grid-template-columns: 1fr; }
@@ -257,6 +286,20 @@
             </div>
         </div>
     </div>
+
+    <!-- 投票详情模态框 -->
+    <div id="voteModal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>投票详情</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="voteModalContent">
+                <p>加载中...</p>
+            </div>
+        </div>
+    </div>
+
     <script>
         const ACTIVITY_IDS = {
             main: '9sftj1vraueq7r5',
@@ -267,10 +310,18 @@
 
         let currentUser = null;
         let isLoggedIn = false;
+        let userSubmissions = {}; // 记录用户的投稿 {activityId: articleId}
+        let userVotes = {}; // 记录用户的投票 {activityId: {voteId, toUserId}}
+        let voteQuotas = {}; // 记录投票配额 {activityId: {total, used, remaining}}
 
         // 初始化
         async function init() {
             await checkLogin();
+            if (isLoggedIn) {
+                await loadUserSubmissions();
+                await loadUserVotes();
+                await loadVoteQuotas();
+            }
             setupEventListeners();
             loadAllVotes();
         }
@@ -304,11 +355,76 @@
             }
         }
 
+        // 加载用户投稿信息
+        async function loadUserSubmissions() {
+            try {
+                const response = await fetch('/activity-api/shield-five-year/my-articles');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.items) {
+                        data.items.forEach(article => {
+                            userSubmissions[article.activityId] = article;
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载用户投稿失败:', error);
+            }
+        }
+
+        // 加载用户投票信息
+        async function loadUserVotes() {
+            try {
+                const response = await fetch('/activity-api/shield-five-year/my-votes');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.items) {
+                        data.items.forEach(vote => {
+                            userVotes[vote.activityId] = vote;
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载用户投票失败:', error);
+            }
+        }
+
+        // 加载投票配额
+        async function loadVoteQuotas() {
+            for (const [key, activityId] of Object.entries(ACTIVITY_IDS)) {
+                if (key === 'main') continue;
+                try {
+                    const response = await fetch(`/activity-api/shield-five-year/vote-quota/${activityId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        voteQuotas[activityId] = data;
+                    }
+                } catch (error) {
+                    console.error(`加载投票配额失败 (${key}):`, error);
+                }
+            }
+        }
+
         // 显示表单
         function showForms() {
-            document.getElementById('activity1Form').style.display = 'block';
-            document.getElementById('activity2Form').style.display = 'block';
-            document.getElementById('activity3Form').style.display = 'block';
+            // 检查各活动是否已投稿，如果已投稿则隐藏表单
+            if (userSubmissions[ACTIVITY_IDS.keyword]) {
+                document.getElementById('activity1Form').style.display = 'none';
+            } else {
+                document.getElementById('activity1Form').style.display = 'block';
+            }
+
+            if (userSubmissions[ACTIVITY_IDS.badge2025]) {
+                document.getElementById('activity2Form').style.display = 'none';
+            } else {
+                document.getElementById('activity2Form').style.display = 'block';
+            }
+
+            if (userSubmissions[ACTIVITY_IDS.badge5year]) {
+                document.getElementById('activity3Form').style.display = 'none';
+            } else {
+                document.getElementById('activity3Form').style.display = 'block';
+            }
 
             // 设置用户头像作为默认徽章图片的占位符
             if (currentUser && currentUser.avatar) {
@@ -487,6 +603,8 @@
                     alert('关键词提交成功！');
                     document.getElementById('keyword').value = '';
                     document.getElementById('keywordDesc').value = '';
+                    await loadUserSubmissions();
+                    showForms();
                     loadArticles('keyword', 'activity1Votes');
                 } else {
                     const error = await response.json();
@@ -567,6 +685,8 @@
                     alert('2025徽章配色提交成功！');
                     document.getElementById('badge2025Title').value = '';
                     document.getElementById('badge2025Note').value = '';
+                    await loadUserSubmissions();
+                    showForms();
                     loadArticles('badge2025', 'activity2Votes');
                 } else {
                     const error = await articleResponse.json();
@@ -669,6 +789,8 @@
                     alert('五周岁徽章设计提交成功！');
                     document.getElementById('badge5yTitle').value = '';
                     document.getElementById('badge5yNote').value = '';
+                    await loadUserSubmissions();
+                    showForms();
                     loadArticles('badge5year', 'activity3Votes');
                 } else {
                     const error = await articleResponse.json();
@@ -710,8 +832,8 @@
             }
         }
 
-        // 渲染文��列表
-        function renderArticles(articles, stats, activityId, containerId) {
+        // 渲染文章列表
+        function renderArticles(articles, stats, activityId, containerId, activityKey, sortBy = 'votes', sortOrder = 'desc') {
             const container = document.getElementById(containerId);
 
             if (articles.length === 0) {
@@ -719,10 +841,56 @@
                 return;
             }
 
-            const html = articles.map(article => {
-                const voteCount = stats[article.user?.id] || 0;
-                const voted = false; // TODO: 检查当前用户是否已投票
+            // 添加创建时间和票数信息
+            const articlesWithMeta = articles.map(article => ({
+                ...article,
+                voteCount: stats[article.user?.id] || 0,
+                isMySubmission: isLoggedIn && currentUser && article.user?.id === currentUser.id,
+                isVoted: isLoggedIn && userVotes[activityId]?.toUserId === article.user?.id,
+                created: new Date(article.created || 0)
+            }));
 
+            // 排序
+            articlesWithMeta.sort((a, b) => {
+                let comparison = 0;
+                if (sortBy === 'votes') {
+                    comparison = a.voteCount - b.voteCount;
+                } else if (sortBy === 'time') {
+                    comparison = a.created - b.created;
+                }
+                return sortOrder === 'desc' ? -comparison : comparison;
+            });
+
+            // 获取投票配额信息
+            const quota = voteQuotas[activityId] || { total: 0, used: 0, remaining: 0 };
+            const canVote = isLoggedIn && quota.remaining > 0;
+
+            // 渲染排序控件和投票配额信息
+            const sortControlsHtml = `
+                <div class="sort-controls">
+                    <div class="sort-buttons">
+                        <button class="sort-btn ${sortBy === 'votes' && sortOrder === 'desc' ? 'active' : ''}"
+                                onclick="loadArticles('${activityKey}', '${containerId}', 'votes', 'desc')">
+                            票数降序
+                        </button>
+                        <button class="sort-btn ${sortBy === 'votes' && sortOrder === 'asc' ? 'active' : ''}"
+                                onclick="loadArticles('${activityKey}', '${containerId}', 'votes', 'asc')">
+                            票数升序
+                        </button>
+                        <button class="sort-btn ${sortBy === 'time' && sortOrder === 'desc' ? 'active' : ''}"
+                                onclick="loadArticles('${activityKey}', '${containerId}', 'time', 'desc')">
+                            时间降序
+                        </button>
+                        <button class="sort-btn ${sortBy === 'time' && sortOrder === 'asc' ? 'active' : ''}"
+                                onclick="loadArticles('${activityKey}', '${containerId}', 'time', 'asc')">
+                            时间升序
+                        </button>
+                    </div>
+                    ${isLoggedIn ? `<div class="vote-info">可投票数: ${quota.remaining} / 已投票: ${quota.used}</div>` : ''}
+                </div>
+            `;
+
+            const html = articlesWithMeta.map(article => {
                 // 如果文章有关联的徽章，生成徽章URL
                 let shieldHtml = '';
                 if (article.shield) {
@@ -735,13 +903,30 @@
                     `;
                 }
 
+                // 投票按钮或编辑按钮
+                let actionButtons = '';
+                if (article.isMySubmission) {
+                    actionButtons = `<button class="btn btn-warning btn-small" onclick="editSubmission('${activityKey}', '${article.id}')">编辑</button>`;
+                } else if (isLoggedIn) {
+                    if (article.isVoted) {
+                        actionButtons = `<button class="btn btn-secondary btn-small" onclick="cancelVote('${activityId}')">取消投票</button>`;
+                    } else if (canVote) {
+                        actionButtons = `<button class="btn btn-small" onclick="voteFor('${activityId}', '${article.user?.id}')">投票</button>`;
+                    } else if (quota.remaining === 0 && quota.used > 0) {
+                        actionButtons = `<button class="btn btn-small" disabled>票数已用完</button>`;
+                    }
+                }
+
                 return `
-                    <div class="vote-item ${voted ? 'voted' : ''}">
+                    <div class="vote-item ${article.isVoted ? 'voted' : ''} ${article.isMySubmission ? 'my-submission' : ''}">
                         <div class="vote-item-header">
                             <img src="${escapeHtml(article.user?.avatar || '')}"
                                  alt="avatar" class="vote-item-avatar"
                                  onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><rect width=%2240%22 height=%2240%22 fill=%22%23ddd%22/></svg>'">
-                            <div class="vote-item-name">${escapeHtml(article.user?.nickname || article.user?.name || '匿名')}</div>
+                            <div class="vote-item-name">
+                                ${escapeHtml(article.user?.nickname || article.user?.name || '匿名')}
+                                ${article.isMySubmission ? ' <span style="color: #ff9800;">★ 我的投稿</span>' : ''}
+                            </div>
                         </div>
                         <div class="vote-item-content">
                             <strong>${escapeHtml(article.title)}</strong>
@@ -749,16 +934,14 @@
                             <p>${escapeHtml(article.content).substring(0, 100)}...</p>
                         </div>
                         <div class="vote-item-actions">
-                            <span class="vote-count">❤️ ${voteCount} 票</span>
-                            ${isLoggedIn && article.user?.id !== currentUser?.id ?
-                                `<button class="btn" onclick="voteFor('${activityId}', '${article.user?.id}')">投票</button>` :
-                                ''}
+                            <span class="vote-count" onclick="showVoteDetails('${activityId}', '${article.user?.id}')">❤️ ${article.voteCount} 票</span>
+                            ${actionButtons}
                         </div>
                     </div>
                 `;
             }).join('');
 
-            container.innerHTML = `<div class="vote-list">${html}</div>`;
+            container.innerHTML = sortControlsHtml + `<div class="vote-list">${html}</div>`;
         }
 
         // 投票
@@ -769,20 +952,21 @@
             }
 
             try {
-
                 const response = await fetch('/activity-api/shield-five-year/vote', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        activityId: activityId, // 传递activityId让后端查找voteId
+                        activityId: activityId,
                         toUserId: targetUserId
                     })
                 });
 
                 if (response.ok) {
                     alert('投票成功！');
+                    await loadUserVotes();
+                    await loadVoteQuotas();
                     loadAllVotes();
                 } else {
                     const error = await response.json();
@@ -791,6 +975,383 @@
             } catch (error) {
                 console.error('投票失败:', error);
                 alert('投票失败，请稍后重试');
+            }
+        }
+
+        // 取消投票
+        async function cancelVote(activityId) {
+            if (!isLoggedIn) {
+                alert('请先登录');
+                return;
+            }
+
+            if (!confirm('确定要取消投票吗？取消后可以重新投给其他人。')) {
+                return;
+            }
+
+            try {
+                const vote = userVotes[activityId];
+                if (!vote || !vote.id) {
+                    alert('未找到投票记录');
+                    return;
+                }
+
+                const response = await fetch(`/activity-api/shield-five-year/vote/${vote.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (response.ok) {
+                    alert('已取消投票！');
+                    await loadUserVotes();
+                    await loadVoteQuotas();
+                    loadAllVotes();
+                } else {
+                    const error = await response.json();
+                    alert(error.message || '取消投票失败');
+                }
+            } catch (error) {
+                console.error('取消投票失败:', error);
+                alert('取消投票失败，请稍后重试');
+            }
+        }
+
+        // 显示投票详情
+        async function showVoteDetails(activityId, targetUserId) {
+            const modal = document.getElementById('voteModal');
+            const modalContent = document.getElementById('voteModalContent');
+
+            modal.classList.add('show');
+            modalContent.innerHTML = '<p>加载中...</p>';
+
+            try {
+                const response = await fetch(`/activity-api/shield-five-year/vote-details/${activityId}/${targetUserId}`);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const voters = data.voters || [];
+
+                    if (voters.length === 0) {
+                        modalContent.innerHTML = '<p>暂无投票</p>';
+                        return;
+                    }
+
+                    const votersHtml = voters.map(voter => {
+                        const time = new Date(voter.created).toLocaleString('zh-CN');
+                        return `
+                            <div class="voter-item">
+                                <img src="${escapeHtml(voter.user?.avatar || '')}"
+                                     alt="avatar" class="voter-avatar"
+                                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2230%22 height=%2230%22><rect width=%2230%22 height=%2230%22 fill=%22%23ddd%22/></svg>'">
+                                <span class="voter-name">${escapeHtml(voter.user?.nickname || voter.user?.name || '匿名')}</span>
+                                <span class="voter-time">${time}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    modalContent.innerHTML = `
+                        <p style="margin-bottom: 15px;">共 ${voters.length} 人投票</p>
+                        <div class="voter-list">${votersHtml}</div>
+                    `;
+                } else {
+                    modalContent.innerHTML = '<p class="error">加载失败</p>';
+                }
+            } catch (error) {
+                console.error('加载投票详情失败:', error);
+                modalContent.innerHTML = '<p class="error">加载失败</p>';
+            }
+        }
+
+        // 关闭模态框
+        function closeModal(event) {
+            if (!event || event.target.id === 'voteModal') {
+                document.getElementById('voteModal').classList.remove('show');
+            }
+        }
+
+        // 编辑投稿
+        async function editSubmission(activityKey, articleId) {
+            const activityId = ACTIVITY_IDS[activityKey];
+            const submission = userSubmissions[activityId];
+
+            if (!submission) {
+                alert('未找到投稿记录');
+                return;
+            }
+
+            // 根据不同活动显示不同的编辑表单
+            if (activityKey === 'keyword') {
+                document.getElementById('keyword').value = submission.title || '';
+                document.getElementById('keywordDesc').value = submission.content || '';
+                document.getElementById('activity1Form').style.display = 'block';
+                document.querySelector('#activity1Form .btn').textContent = '更新关键词';
+                document.querySelector('#activity1Form .btn').onclick = () => updateSubmission('keyword', articleId);
+                document.getElementById('activity1Form').scrollIntoView({ behavior: 'smooth' });
+            } else if (activityKey === 'badge2025') {
+                document.getElementById('badge2025Title').value = submission.title || '';
+                document.getElementById('badge2025Note').value = submission.content || '';
+                if (submission.shield) {
+                    document.getElementById('badge2025Back').value = '#' + (submission.shield.backcolor || 'db5a6b');
+                    document.getElementById('badge2025Font').value = '#' + (submission.shield.fontcolor || 'ffffff');
+                }
+                updateBadgePreview('2025');
+                document.getElementById('activity2Form').style.display = 'block';
+                document.querySelector('#activity2Form .btn').textContent = '更新配色方案';
+                document.querySelector('#activity2Form .btn').onclick = () => updateSubmission('badge2025', articleId);
+                document.getElementById('activity2Form').scrollIntoView({ behavior: 'smooth' });
+            } else if (activityKey === 'badge5year') {
+                document.getElementById('badge5yTitle').value = submission.title || '';
+                document.getElementById('badge5yNote').value = submission.content || '';
+                if (submission.shield) {
+                    document.getElementById('badge5yUrl').value = submission.shield.url || '';
+                    document.getElementById('badge5yBack').value = '#' + (submission.shield.backcolor || 'db5a6b');
+                    document.getElementById('badge5yFont').value = '#' + (submission.shield.fontcolor || 'ffffff');
+                    if (submission.shield.size) document.getElementById('badge5ySize').value = submission.shield.size;
+                    if (submission.shield.border) document.getElementById('badge5yBorder').value = submission.shield.border;
+                    if (submission.shield.barlen) document.getElementById('badge5yBarlen').value = submission.shield.barlen;
+                    if (submission.shield.fontsize) document.getElementById('badge5yFontsize').value = submission.shield.fontsize;
+                    if (submission.shield.barradius) document.getElementById('badge5yBarradius').value = submission.shield.barradius;
+                    if (submission.shield.shadow !== undefined) document.getElementById('badge5yShadow').value = submission.shield.shadow;
+                    if (submission.shield.anime !== undefined) document.getElementById('badge5yAnime').value = submission.shield.anime;
+                }
+                updateBadgePreview('5year');
+                document.getElementById('activity3Form').style.display = 'block';
+                document.querySelector('#activity3Form .btn').textContent = '更新设计方案';
+                document.querySelector('#activity3Form .btn').onclick = () => updateSubmission('badge5year', articleId);
+                document.getElementById('activity3Form').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // 更新投稿
+        async function updateSubmission(activityKey, articleId) {
+            if (activityKey === 'keyword') {
+                await updateKeyword(articleId);
+            } else if (activityKey === 'badge2025') {
+                await updateBadge2025(articleId);
+            } else if (activityKey === 'badge5year') {
+                await updateBadge5Year(articleId);
+            }
+        }
+
+        // 更新关键词
+        async function updateKeyword(articleId) {
+            if (!isLoggedIn) {
+                alert('请先登录');
+                return;
+            }
+
+            const keywordValid = validateField('keyword', 'keywordError', '请输入关键词');
+            const descValid = validateField('keywordDesc', 'keywordDescError', '请输入关键词介绍');
+
+            if (!keywordValid || !descValid) {
+                return;
+            }
+
+            const keyword = document.getElementById('keyword').value.trim();
+            const desc = document.getElementById('keywordDesc').value.trim();
+
+            try {
+                const response = await fetch(`/activity-api/shield-five-year/articles/${articleId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: keyword,
+                        content: desc
+                    })
+                });
+
+                if (response.ok) {
+                    alert('关键词更新成功！');
+                    document.getElementById('keyword').value = '';
+                    document.getElementById('keywordDesc').value = '';
+                    document.querySelector('#activity1Form .btn').textContent = '提交关键词';
+                    document.querySelector('#activity1Form .btn').onclick = submitKeyword;
+                    await loadUserSubmissions();
+                    showForms();
+                    loadArticles('keyword', 'activity1Votes');
+                } else {
+                    const error = await response.json();
+                    alert(error.message || '更新失败');
+                }
+            } catch (error) {
+                console.error('更新失败:', error);
+                alert('更新失败，请稍后重试');
+            }
+        }
+
+        // 更新2025徽章配色
+        async function updateBadge2025(articleId) {
+            if (!isLoggedIn) {
+                alert('请先登录');
+                return;
+            }
+
+            const titleValid = validateField('badge2025Title', 'badge2025TitleError', '请输入设计标题');
+
+            if (!titleValid) {
+                return;
+            }
+
+            const title = document.getElementById('badge2025Title').value.trim();
+            const note = document.getElementById('badge2025Note').value.trim();
+            const backcolor = document.getElementById('badge2025Back').value.substring(1);
+            const fontcolor = document.getElementById('badge2025Font').value.substring(1);
+
+            try {
+                const submission = userSubmissions[ACTIVITY_IDS.badge2025];
+                const shieldId = submission?.shieldId;
+
+                // 更新徽章
+                if (shieldId) {
+                    const shieldResponse = await fetch(`/activity-api/shield-five-year/shields/${shieldId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            backcolor: backcolor,
+                            fontcolor: fontcolor,
+                            title: title,
+                            note: note
+                        })
+                    });
+
+                    if (!shieldResponse.ok) {
+                        const error = await shieldResponse.json();
+                        alert(error.message || '徽章更新失败');
+                        return;
+                    }
+                }
+
+                // 更新文章
+                const articleResponse = await fetch(`/activity-api/shield-five-year/articles/${articleId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        content: note || '我的2025徽章配色设计'
+                    })
+                });
+
+                if (articleResponse.ok) {
+                    alert('2025徽章配色更新成功！');
+                    document.getElementById('badge2025Title').value = '';
+                    document.getElementById('badge2025Note').value = '';
+                    document.querySelector('#activity2Form .btn').textContent = '提交配色方案';
+                    document.querySelector('#activity2Form .btn').onclick = submitBadge2025;
+                    await loadUserSubmissions();
+                    showForms();
+                    loadArticles('badge2025', 'activity2Votes');
+                } else {
+                    const error = await articleResponse.json();
+                    alert(error.message || '文章更新失败');
+                }
+            } catch (error) {
+                console.error('更新失败:', error);
+                alert('更新失败，请稍后重试');
+            }
+        }
+
+        // 更新五周岁徽章设计
+        async function updateBadge5Year(articleId) {
+            if (!isLoggedIn) {
+                alert('请先登录');
+                return;
+            }
+
+            const titleValid = validateField('badge5yTitle', 'badge5yTitleError', '请输入设计标题');
+
+            if (!titleValid) {
+                return;
+            }
+
+            const title = document.getElementById('badge5yTitle').value.trim();
+            const note = document.getElementById('badge5yNote').value.trim();
+            let url = document.getElementById('badge5yUrl').value;
+
+            if (!url && currentUser && currentUser.avatar) {
+                url = currentUser.avatar;
+            }
+
+            if (!url) {
+                url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+            }
+
+            const backcolor = document.getElementById('badge5yBack').value.substring(1);
+            const fontcolor = document.getElementById('badge5yFont').value.substring(1);
+
+            const shieldData = {
+                url: url,
+                backcolor: backcolor,
+                fontcolor: fontcolor,
+                title: title,
+                note: note
+            };
+
+            const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+            optionalParams.forEach(param => {
+                const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
+                const value = document.getElementById(inputId).value;
+                if (value !== '') {
+                    shieldData[param] = value;
+                }
+            });
+
+            try {
+                const submission = userSubmissions[ACTIVITY_IDS.badge5year];
+                const shieldId = submission?.shieldId;
+
+                // 更新徽章
+                if (shieldId) {
+                    const shieldResponse = await fetch(`/activity-api/shield-five-year/shields/${shieldId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(shieldData)
+                    });
+
+                    if (!shieldResponse.ok) {
+                        const error = await shieldResponse.json();
+                        alert(error.message || '徽章更新失败');
+                        return;
+                    }
+                }
+
+                // 更新文章
+                const articleResponse = await fetch(`/activity-api/shield-five-year/articles/${articleId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        content: note || '我的五周岁徽章设计'
+                    })
+                });
+
+                if (articleResponse.ok) {
+                    alert('五周岁徽章设计更新成功！');
+                    document.getElementById('badge5yTitle').value = '';
+                    document.getElementById('badge5yNote').value = '';
+                    document.querySelector('#activity3Form .btn').textContent = '提交设计方案';
+                    document.querySelector('#activity3Form .btn').onclick = submitBadge5Year;
+                    await loadUserSubmissions();
+                    showForms();
+                    loadArticles('badge5year', 'activity3Votes');
+                } else {
+                    const error = await articleResponse.json();
+                    alert(error.message || '文章更新失败');
+                }
+            } catch (error) {
+                console.error('更新失败:', error);
+                alert('更新失败，请稍后重试');
             }
         }
 
