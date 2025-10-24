@@ -74,6 +74,8 @@ func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) e
 		BarRadius  string `json:"barradius"`
 		Shadow     string `json:"shadow"`
 		Anime      string `json:"anime"`
+		Title      string `json:"title"`
+		Note       string `json:"note"`
 	}{}
 
 	if err := e.BindBody(&data); err != nil {
@@ -118,6 +120,14 @@ func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) e
 	shield.SetUrl(data.Url)
 	shield.SetBackcolor(data.Backcolor)
 	shield.SetFontcolor(data.Fontcolor)
+
+	// 保存标题和设计思路
+	if data.Title != "" {
+		shield.Set("title", data.Title)
+	}
+	if data.Note != "" {
+		shield.Set("note", data.Note)
+	}
 
 	if data.Ver != "" {
 		shield.Set(model.ShieldsFieldVer, data.Ver)
@@ -200,6 +210,8 @@ func (controller *ShieldFiveYearController) GetShieldsByActivity(e *core.Request
 			"url":       shield.Url(),
 			"backcolor": shield.Backcolor(),
 			"fontcolor": shield.Fontcolor(),
+			"title":     shield.GetString("title"),
+			"note":      shield.GetString("note"),
 			"created":   shield.GetDateTime(model.ShieldsFieldCreated).String(),
 			"user":      userData,
 		})
@@ -329,6 +341,7 @@ func (controller *ShieldFiveYearController) GetArticlesByActivity(e *core.Reques
 func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 	data := struct {
 		VoteId     string `json:"voteId"`
+		ActivityId string `json:"activityId"`
 		ToUserId   string `json:"toUserId"`
 		TargetType string `json:"targetType"` // "article" or "shield"
 		TargetId   string `json:"targetId"`
@@ -339,18 +352,37 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 		return e.BadRequestError("参数错误", err)
 	}
 
-	if data.VoteId == "" || data.ToUserId == "" {
-		return e.BadRequestError("投票ID和目标用户ID不能为空", nil)
+	if data.ToUserId == "" {
+		return e.BadRequestError("目标用户ID不能为空", nil)
 	}
 
 	user := model.NewUser(e.Auth)
+
+	// 如果没有提供voteId，通过activityId查找
+	voteId := data.VoteId
+	if voteId == "" && data.ActivityId != "" {
+		activity, err := controller.app.FindRecordById(model.DbNameActivities, data.ActivityId)
+		if err != nil {
+			return e.BadRequestError("活动不存在", err)
+		}
+		activityModel := model.NewActivity(activity)
+		voteId = activityModel.VoteId()
+
+		if voteId == "" {
+			return e.BadRequestError("该活动未配置投票", nil)
+		}
+	}
+
+	if voteId == "" {
+		return e.BadRequestError("投票ID不能为空", nil)
+	}
 
 	// 检查是否已经投过票
 	existing, _ := controller.app.FindFirstRecordByFilter(
 		model.DbNameVoteLogs,
 		"voteId = {:voteId} && fromUserId = {:fromUserId} && toUserId = {:toUserId}",
 		map[string]any{
-			"voteId":     data.VoteId,
+			"voteId":     voteId,
 			"fromUserId": user.Id,
 			"toUserId":   data.ToUserId,
 		},
@@ -361,7 +393,7 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 	}
 
 	// 获取投票配置，检查投票次数限制
-	vote, err := controller.app.FindRecordById(model.DbNameVotes, data.VoteId)
+	vote, err := controller.app.FindRecordById(model.DbNameVotes, voteId)
 	if err != nil {
 		return e.BadRequestError("投票活动不存在", err)
 	}
@@ -377,7 +409,7 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 		0,
 		0,
 		map[string]any{
-			"voteId":     data.VoteId,
+			"voteId":     voteId,
 			"fromUserId": user.Id,
 		},
 	)
@@ -397,7 +429,7 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 	}
 
 	voteLog := model.NewVoteLogFromCollection(collection)
-	voteLog.SetVoteId(data.VoteId)
+	voteLog.SetVoteId(voteId)
 	voteLog.SetFromUserId(user.Id)
 	voteLog.SetToUserId(data.ToUserId)
 	voteLog.SetComment(data.Comment)

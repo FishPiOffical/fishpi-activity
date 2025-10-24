@@ -333,6 +333,16 @@
             <p>为"2025徽章"设计您心目中的流行配色方案！</p>
 
             <div id="activity2Form" style="display: none;">
+                <div class="form-group">
+                    <label for="badge2025Title">设计标题</label>
+                    <input type="text" id="badge2025Title" placeholder="给您的配色方案起个名字" maxlength="50">
+                </div>
+
+                <div class="form-group">
+                    <label for="badge2025Note">设计思路</label>
+                    <textarea id="badge2025Note" placeholder="介绍一下您的设计思路和配色理念..." rows="3"></textarea>
+                </div>
+
                 <div class="color-input-group">
                     <div class="form-group">
                         <label for="badge2025Back">背景色</label>
@@ -366,8 +376,24 @@
 
             <div id="activity3Form" style="display: none;">
                 <div class="form-group">
+                    <label for="badge5yTitle">设计标题</label>
+                    <input type="text" id="badge5yTitle" placeholder="给您的徽章设计起个名字" maxlength="50">
+                </div>
+
+                <div class="form-group">
+                    <label for="badge5yNote">设计思路</label>
+                    <textarea id="badge5yNote" placeholder="介绍一下您的设计思路..." rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="badge5yImageUpload">上传徽章图片</label>
+                    <input type="file" id="badge5yImageUpload" accept="image/*" onchange="handleImageUpload(event)">
+                    <small style="color: #666; display: block; margin-top: 5px;">或者输入图片URL（默认使用您的头像）</small>
+                </div>
+
+                <div class="form-group">
                     <label for="badge5yUrl">徽章图片URL</label>
-                    <input type="text" id="badge5yUrl" placeholder="https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg">
+                    <input type="text" id="badge5yUrl" placeholder="默认使用您的头像">
                 </div>
 
                 <div class="color-input-group">
@@ -492,6 +518,14 @@
             document.getElementById('activity1Form').style.display = 'block';
             document.getElementById('activity2Form').style.display = 'block';
             document.getElementById('activity3Form').style.display = 'block';
+
+            // 设置用户头像作为默认徽章图片的占位符
+            if (currentUser && currentUser.avatar) {
+                const urlInput = document.getElementById('badge5yUrl');
+                if (!urlInput.value) {
+                    urlInput.placeholder = `默认使用您的头像: ${currentUser.avatar}`;
+                }
+            }
         }
 
         // 设置事件监听器
@@ -516,7 +550,8 @@
         function updateBadge2025Preview() {
             const backcolor = document.getElementById('badge2025Back').value.substring(1);
             const fontcolor = document.getElementById('badge2025Font').value.substring(1);
-            const url = `https://fishpi.cn/gen?ver=0.1&scale=0.79&txt=2025&backcolor=${backcolor}&fontcolor=${fontcolor}`;
+            const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
+            const url = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=2025&url=${encodeURIComponent(defaultImage)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
 
             document.getElementById('badge2025Preview').src = url;
             document.getElementById('badge2025Url').textContent = url;
@@ -525,11 +560,22 @@
         // 更新五周岁徽章预览
         function updateBadge5YearPreview() {
             const txt = '摸鱼派5岁啦';
-            const url = document.getElementById('badge5yUrl').value || 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+            let url = document.getElementById('badge5yUrl').value;
+
+            // 如果没有输入URL，使用用户头像
+            if (!url && currentUser && currentUser.avatar) {
+                url = currentUser.avatar;
+            }
+
+            // 如果还是没有URL，使用默认图片
+            if (!url) {
+                url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+            }
+
             const backcolor = document.getElementById('badge5yBack').value.substring(1);
             const fontcolor = document.getElementById('badge5yFont').value.substring(1);
 
-            let genUrl = `https://fishpi.cn/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(txt)}&url=${encodeURIComponent(url)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
+            let genUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(txt)}&url=${encodeURIComponent(url)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
 
             // 添加可选参数
             const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
@@ -543,6 +589,42 @@
 
             document.getElementById('badge5yPreview').src = genUrl;
             document.getElementById('badge5yUrl').textContent = genUrl;
+        }
+
+        // 处理图片上传
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 检查文件类型
+            if (!file.type.startsWith('image/')) {
+                alert('请选择图片文件');
+                return;
+            }
+
+            // 检查文件大小（限制5MB）
+            if (file.size > 5 * 1024 * 1024) {
+                alert('图片大小不能超过5MB');
+                return;
+            }
+
+            try {
+                // 创建FormData上传文件
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // 这里需要调用摸鱼派的文件上传API
+                // 暂时使用FileReader转换为base64作为备选方案
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // 直接使用URL（实际应该上传到服务器）
+                    alert('图片上传功能需要对接摸鱼派文件上传API。\n请手动上传图片后填入URL。');
+                };
+                reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('图片上传失败:', error);
+                alert('图片上传失败，请重试');
+            }
         }
 
         // 提交关键词
@@ -595,10 +677,18 @@
                 return;
             }
 
+            const title = document.getElementById('badge2025Title').value.trim();
+            const note = document.getElementById('badge2025Note').value.trim();
             const backcolor = document.getElementById('badge2025Back').value.substring(1);
             const fontcolor = document.getElementById('badge2025Font').value.substring(1);
 
+            if (!title) {
+                alert('请填写设计标题');
+                return;
+            }
+
             try {
+                const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
                 const response = await fetch('/api/shield-five-year/shields', {
                     method: 'POST',
                     headers: {
@@ -607,16 +697,20 @@
                     body: JSON.stringify({
                         activityId: ACTIVITY_IDS.badge2025,
                         text: '2025',
-                        url: '',
+                        url: defaultImage,
                         backcolor: backcolor,
                         fontcolor: fontcolor,
                         ver: '0.1',
-                        scale: '0.79'
+                        scale: '0.79',
+                        title: title,
+                        note: note
                     })
                 });
 
                 if (response.ok) {
                     alert('2025徽章配色提交成功！');
+                    document.getElementById('badge2025Title').value = '';
+                    document.getElementById('badge2025Note').value = '';
                     loadShields('badge2025', 'activity2Votes');
                 } else {
                     const error = await response.json();
@@ -635,10 +729,28 @@
                 return;
             }
 
+            const title = document.getElementById('badge5yTitle').value.trim();
+            const note = document.getElementById('badge5yNote').value.trim();
             const text = '摸鱼派5岁啦';
-            const url = document.getElementById('badge5yUrl').value || 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+            let url = document.getElementById('badge5yUrl').value;
+
+            // 如果没有输入URL，使用用户头像
+            if (!url && currentUser && currentUser.avatar) {
+                url = currentUser.avatar;
+            }
+
+            // 如果还是没有URL，使用默认图片
+            if (!url) {
+                url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+            }
+
             const backcolor = document.getElementById('badge5yBack').value.substring(1);
             const fontcolor = document.getElementById('badge5yFont').value.substring(1);
+
+            if (!title) {
+                alert('请填写设计标题');
+                return;
+            }
 
             const shieldData = {
                 activityId: ACTIVITY_IDS.badge5year,
@@ -647,7 +759,9 @@
                 backcolor: backcolor,
                 fontcolor: fontcolor,
                 ver: '0.1',
-                scale: '0.79'
+                scale: '0.79',
+                title: title,
+                note: note
             };
 
             // 添加可选参数
@@ -671,6 +785,8 @@
 
                 if (response.ok) {
                     alert('五周岁徽章设计提交成功！');
+                    document.getElementById('badge5yTitle').value = '';
+                    document.getElementById('badge5yNote').value = '';
                     loadShields('badge5year', 'activity3Votes');
                 } else {
                     const error = await response.json();
@@ -786,7 +902,7 @@
                 const voteCount = stats[shield.user?.id] || 0;
                 const voted = false; // TODO: 检查当前用户是否已投票
 
-                const shieldUrl = `https://fishpi.cn/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(shield.text)}&backcolor=${shield.backcolor}&fontcolor=${shield.fontcolor}${shield.url ? '&url=' + encodeURIComponent(shield.url) : ''}`;
+                const shieldUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(shield.text)}&backcolor=${shield.backcolor}&fontcolor=${shield.fontcolor}${shield.url ? '&url=' + encodeURIComponent(shield.url) : ''}`;
 
                 return `
                     <div class="vote-item ${voted ? 'voted' : ''}">
@@ -797,7 +913,9 @@
                             <div class="vote-item-name">${escapeHtml(shield.user?.nickname || shield.user?.name || '匿名')}</div>
                         </div>
                         <div class="vote-item-content">
+                            ${shield.title ? `<h4 style="margin-bottom: 10px; color: #333;">${escapeHtml(shield.title)}</h4>` : ''}
                             <img src="${shieldUrl}" alt="徽章" style="max-width: 100%; margin: 10px 0;" referrerpolicy="no-referrer">
+                            ${shield.note ? `<p style="margin-top: 10px; color: #666; font-size: 0.9rem;">${escapeHtml(shield.note)}</p>` : ''}
                         </div>
                         <div class="vote-item-actions">
                             <span class="vote-count">❤️ ${voteCount} 票</span>
@@ -820,14 +938,28 @@
             }
 
             try {
-                // 获取活动的投票ID
+                // 先获取活动信息以获取voteId
                 const activityRes = await fetch(`/api/activities`);
-                const activityData = await activityRes.json();
-                const activity = activityData.items.find(a => a.id === activityId);
+                if (!activityRes.ok) {
+                    throw new Error('获取活动信息失败');
+                }
 
-                if (!activity || !activity.voteId) {
-                    alert('该活动未配置投票');
+                const activityData = await activityRes.json();
+                const activity = activityData.items?.find(a => a.id === activityId);
+
+                if (!activity) {
+                    alert('活动不存在');
                     return;
+                }
+
+                // 从活动记录中获取voteId（需要通过展开字段获取）
+                // 如果API没有返回voteId，我们需要另一种方式
+                let voteId = activity.voteId;
+
+                // 如果没有voteId，尝试直接使用activityId调用后端
+                if (!voteId) {
+                    // 后端会根据activityId查找voteId
+                    voteId = activityId; // 临时使用，后端会处理
                 }
 
                 const response = await fetch('/api/shield-five-year/vote', {
@@ -836,7 +968,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        voteId: activity.voteId,
+                        activityId: activityId, // 传递activityId让后端查找voteId
                         toUserId: targetUserId
                     })
                 });
