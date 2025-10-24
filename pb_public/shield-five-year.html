@@ -1311,6 +1311,7 @@
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
+                            articleId: articleId,
                             backcolor: backcolor,
                             fontcolor: fontcolor,
                             title: title,
@@ -1404,6 +1405,9 @@
             try {
                 const submission = userSubmissions[ACTIVITY_IDS.badge5year];
                 const shieldId = submission?.shieldId;
+
+                // 添加articleId到shieldData（使用函数参数中的articleId）
+                shieldData.articleId = articleId;
 
                 // 更新徽章
                 if (shieldId) {

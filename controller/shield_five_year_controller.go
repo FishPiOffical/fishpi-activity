@@ -609,35 +609,100 @@ func (controller *ShieldFiveYearController) UpdateShield(e *core.RequestEvent) e
 	id := e.Request.PathValue("id")
 	authRecord := e.Auth
 
-	// 查找徽章记录
-	record, err := controller.app.FindRecordById(model.DbNameShields, id)
-	if err != nil {
-		return e.NotFoundError("徽章不存在", err)
-	}
-
-	shield := model.NewShield(record)
-
-	// 检查权限：只能更新自己的徽章
-	if shield.GetString("userId") != authRecord.Id {
-		return e.ForbiddenError("无权限更新此徽章", nil)
-	}
-
 	// 解析请求体
 	var data map[string]any
 	if err := e.BindBody(&data); err != nil {
 		return e.BadRequestError("参数错误", err)
 	}
 
-	// 更新字段
-	for key, value := range data {
-		record.Set(key, value)
+	// 获取文章ID
+	articleId, ok := data["articleId"].(string)
+	if !ok || articleId == "" {
+		return e.BadRequestError("文章ID不能为空", nil)
 	}
 
-	if err := controller.app.Save(record); err != nil {
+	// 查找文章记录，确认权限
+	articleRecord, err := controller.app.FindRecordById(model.DbNameArticles, articleId)
+	if err != nil {
+		return e.NotFoundError("文章不存在", err)
+	}
+
+	article := model.NewArticle(articleRecord)
+
+	// 检查权限：只能更新自己文章对应的徽章
+	if article.UserId() != authRecord.Id {
+		return e.ForbiddenError("无权限更新此徽章", nil)
+	}
+
+	// 查找徽章记录
+	shieldRecord, err := controller.app.FindRecordById(model.DbNameShields, id)
+	if err != nil {
+		return e.NotFoundError("徽章不存在", err)
+	}
+
+	shield := model.NewShield(shieldRecord)
+
+	// 更新徽章字段
+	if text, ok := data["text"].(string); ok {
+		shield.SetText(text)
+	}
+	if url, ok := data["url"].(string); ok {
+		shield.SetUrl(url)
+	}
+	if backcolor, ok := data["backcolor"].(string); ok {
+		shield.SetBackcolor(backcolor)
+	}
+	if fontcolor, ok := data["fontcolor"].(string); ok {
+		shield.SetFontcolor(fontcolor)
+	}
+	if ver, ok := data["ver"].(string); ok {
+		shield.Set(model.ShieldsFieldVer, ver)
+	}
+	if scale, ok := data["scale"].(string); ok {
+		shield.Set(model.ShieldsFieldScale, scale)
+	}
+	if size, ok := data["size"].(string); ok {
+		shield.Set(model.ShieldsFieldSize, size)
+	}
+	if border, ok := data["border"].(string); ok {
+		shield.Set(model.ShieldsFieldBorder, border)
+	}
+	if barLen, ok := data["barlen"].(string); ok {
+		shield.Set(model.ShieldsFieldBarLen, barLen)
+	}
+	if fontsize, ok := data["fontsize"].(string); ok {
+		shield.Set(model.ShieldsFieldFontsize, fontsize)
+	}
+	if barRadius, ok := data["barradius"].(string); ok {
+		shield.Set(model.ShieldsFieldBarRadius, barRadius)
+	}
+	if shadow, ok := data["shadow"].(string); ok {
+		shield.Set(model.ShieldsFieldShadow, shadow)
+	}
+	if anime, ok := data["anime"].(string); ok {
+		shield.Set(model.ShieldsFieldAnime, anime)
+	}
+	if title, ok := data["title"].(string); ok {
+		shield.Set("title", title)
+	}
+	if note, ok := data["note"].(string); ok {
+		shield.Set("note", note)
+	}
+
+	// 更新文章的徽章ID关联
+	article.SetShieldId(shield.Id)
+
+	// 保存徽章
+	if err := controller.app.Save(shield.ProxyRecord()); err != nil {
 		return e.InternalServerError("更新徽章失败", err)
 	}
 
-	return e.JSON(http.StatusOK, record)
+	// 保存文章
+	if err := controller.app.Save(article.ProxyRecord()); err != nil {
+		return e.InternalServerError("更新文章失败", err)
+	}
+
+	return e.JSON(http.StatusOK, shield.ProxyRecord())
 }
 
 // UpdateArticle 更新文章
