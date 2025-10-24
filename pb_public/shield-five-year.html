@@ -690,7 +690,9 @@
 
             try {
                 const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
-                const response = await fetch('/activity-api/shield-five-year/shields', {
+
+                // 第一步：创建徽章
+                const shieldResponse = await fetch('/activity-api/shield-five-year/shields', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -708,14 +710,37 @@
                     })
                 });
 
-                if (response.ok) {
+                if (!shieldResponse.ok) {
+                    const error = await shieldResponse.json();
+                    alert(error.message || '徽章保存失败');
+                    return;
+                }
+
+                const shieldData = await shieldResponse.json();
+                const shieldId = shieldData.shield?.id;
+
+                // 第二步：创建文章并绑定徽章
+                const articleResponse = await fetch('/activity-api/shield-five-year/articles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        activityId: ACTIVITY_IDS.badge2025,
+                        title: title,
+                        content: note || '我的2025徽章配色设计',
+                        shieldId: shieldId
+                    })
+                });
+
+                if (articleResponse.ok) {
                     alert('2025徽章配色提交成功！');
                     document.getElementById('badge2025Title').value = '';
                     document.getElementById('badge2025Note').value = '';
-                    loadShields('badge2025', 'activity2Votes');
+                    loadArticles('badge2025', 'activity2Votes');
                 } else {
-                    const error = await response.json();
-                    alert(error.message || '提交失败');
+                    const error = await articleResponse.json();
+                    alert(error.message || '文章保存失败');
                 }
             } catch (error) {
                 console.error('提交失败:', error);
@@ -784,14 +809,37 @@
                     body: JSON.stringify(shieldData)
                 });
 
-                if (response.ok) {
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(error.message || '徽章保存失败');
+                    return;
+                }
+
+                const shieldResponse = await response.json();
+                const shieldId = shieldResponse.shield?.id;
+
+                // 第二步：创建文章并绑定徽章
+                const articleResponse = await fetch('/activity-api/shield-five-year/articles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        activityId: ACTIVITY_IDS.badge5year,
+                        title: title,
+                        content: note || '我的五周岁徽章设计',
+                        shieldId: shieldId
+                    })
+                });
+
+                if (articleResponse.ok) {
                     alert('五周岁徽章设计提交成功！');
                     document.getElementById('badge5yTitle').value = '';
                     document.getElementById('badge5yNote').value = '';
-                    loadShields('badge5year', 'activity3Votes');
+                    loadArticles('badge5year', 'activity3Votes');
                 } else {
-                    const error = await response.json();
-                    alert(error.message || '提交失败');
+                    const error = await articleResponse.json();
+                    alert(error.message || '文章保存失败');
                 }
             } catch (error) {
                 console.error('提交失败:', error);
@@ -802,8 +850,8 @@
         // 加载所有投票
         async function loadAllVotes() {
             loadArticles('keyword', 'activity1Votes');
-            loadShields('badge2025', 'activity2Votes');
-            loadShields('badge5year', 'activity3Votes');
+            loadArticles('badge2025', 'activity2Votes');
+            loadArticles('badge5year', 'activity3Votes');
         }
 
         // 加载文章列表（关键词活动）
@@ -842,6 +890,18 @@
                 const voteCount = stats[article.user?.id] || 0;
                 const voted = false; // TODO: 检查当前用户是否已投票
 
+                // 如果文章有关联的徽章，生成徽章URL
+                let shieldHtml = '';
+                if (article.shield) {
+                    const shield = article.shield;
+                    const shieldUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(shield.text || '')}&backcolor=${shield.backcolor || ''}&fontcolor=${shield.fontcolor || ''}${shield.url ? '&url=' + encodeURIComponent(shield.url) : ''}`;
+                    shieldHtml = `
+                        <div style="margin: 10px 0;">
+                            <img src="${shieldUrl}" alt="徽章" style="max-width: 100%;" referrerpolicy="no-referrer">
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="vote-item ${voted ? 'voted' : ''}">
                         <div class="vote-item-header">
@@ -852,6 +912,7 @@
                         </div>
                         <div class="vote-item-content">
                             <strong>${escapeHtml(article.title)}</strong>
+                            ${shieldHtml}
                             <p>${escapeHtml(article.content).substring(0, 100)}...</p>
                         </div>
                         <div class="vote-item-actions">

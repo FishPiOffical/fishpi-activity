@@ -162,9 +162,19 @@ func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) e
 		return e.InternalServerError("保存徽章失败", err)
 	}
 
+	// 返回完整的徽章信息，包括预览URL
 	return e.JSON(http.StatusOK, map[string]any{
 		"id":      shield.Id,
 		"message": "徽章保存成功",
+		"shield": map[string]any{
+			"id":        shield.Id,
+			"text":      shield.Text(),
+			"url":       shield.Url(),
+			"backcolor": shield.Backcolor(),
+			"fontcolor": shield.Fontcolor(),
+			"title":     shield.GetString("title"),
+			"note":      shield.GetString("note"),
+		},
 	})
 }
 
@@ -305,7 +315,7 @@ func (controller *ShieldFiveYearController) GetArticlesByActivity(e *core.Reques
 		return e.InternalServerError("获取文章列表失败", err)
 	}
 
-	// 扩展用户信息
+	// 扩展用户信息和徽章信息
 	result := make([]map[string]any, 0, len(records))
 	for _, record := range records {
 		article := model.NewArticle(record)
@@ -323,11 +333,31 @@ func (controller *ShieldFiveYearController) GetArticlesByActivity(e *core.Reques
 			}
 		}
 
+		// 如果文章关联了徽章，获取徽章信息
+		var shieldData map[string]any
+		shieldId := article.ShieldId()
+		if shieldId != "" {
+			shieldRecord, err := controller.app.FindRecordById(model.DbNameShields, shieldId)
+			if err == nil && shieldRecord != nil {
+				shield := model.NewShield(shieldRecord)
+				shieldData = map[string]any{
+					"id":        shield.Id,
+					"text":      shield.Text(),
+					"url":       shield.Url(),
+					"backcolor": shield.Backcolor(),
+					"fontcolor": shield.Fontcolor(),
+					"title":     shield.GetString("title"),
+					"note":      shield.GetString("note"),
+				}
+			}
+		}
+
 		result = append(result, map[string]any{
 			"id":       article.Id,
 			"title":    article.Title(),
 			"content":  article.Content(),
-			"shieldId": article.ShieldId(),
+			"shieldId": shieldId,
+			"shield":   shieldData,
 			"created":  article.GetDateTime(model.ArticlesFieldCreated).String(),
 			"user":     userData,
 		})
