@@ -1000,29 +1000,6 @@
             }
 
             try {
-                // 先获取活动信息以获取voteId
-                const activityRes = await fetch(`/api/activities`);
-                if (!activityRes.ok) {
-                    throw new Error('获取活动信息失败');
-                }
-
-                const activityData = await activityRes.json();
-                const activity = activityData.items?.find(a => a.id === activityId);
-
-                if (!activity) {
-                    alert('活动不存在');
-                    return;
-                }
-
-                // 从活动记录中获取voteId（需要通过展开字段获取）
-                // 如果API没有返回voteId，我们需要另一种方式
-                let voteId = activity.voteId;
-
-                // 如果没有voteId，尝试直接使用activityId调用后端
-                if (!voteId) {
-                    // 后端会根据activityId查找voteId
-                    voteId = activityId; // 临时使用，后端会处理
-                }
 
                 const response = await fetch('/activity-api/shield-five-year/vote', {
                     method: 'POST',
