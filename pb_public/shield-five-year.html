@@ -78,8 +78,6 @@
         .btn { background: #667eea; color: white; border: none; padding: 12px 30px; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: background 0.3s; margin-right: 10px; }
         .btn:hover { background: #5568d3; }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-secondary { background: #6c757d; }
-        .btn-secondary:hover { background: #5a6268; }
         /* 投票区块 */
         .vote-section { margin-top: 30px; padding-top: 30px; border-top: 2px solid #eee; }
         .vote-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
@@ -92,11 +90,7 @@
         .vote-item-content { margin: 10px 0; color: #666; }
         .vote-item-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
         .vote-count { color: #667eea; font-weight: 600; }
-        /* 状态提示 */
         .error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; margin-bottom: 15px; }
-        .success { background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; margin-bottom: 15px; }
-        .loading { text-align: center; padding: 20px; color: #666; }
-        /* 响应式 */
         @media (max-width: 768px) {
             header h1 { font-size: 1.8rem; }
             .color-input-group { grid-template-columns: 1fr; }
@@ -335,40 +329,34 @@
             };
         }
 
-        // 原预览函数
-        function updateBadge2025Preview() {
-            const backcolor = document.getElementById('badge2025Back').value.substring(1);
-            const fontcolor = document.getElementById('badge2025Font').value.substring(1);
-            const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
-            const url = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=2025&url=${encodeURIComponent(defaultImage)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
-            document.getElementById('badge2025Preview').src = url;
-        }
-        // 原预览函数
-        function updateBadge5YearPreview() {
-            const txt = '摸鱼派5岁啦';
-            let url = document.getElementById('badge5yUrl').value;
-            if (!url && currentUser && currentUser.avatar) {
-                url = currentUser.avatar;
+        // 合并预览函数，去除重复
+        function updateBadgePreview(type) {
+            if (type === '2025') {
+                const backcolor = document.getElementById('badge2025Back').value.substring(1);
+                const fontcolor = document.getElementById('badge2025Font').value.substring(1);
+                const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
+                const url = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=2025&url=${encodeURIComponent(defaultImage)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
+                document.getElementById('badge2025Preview').src = url;
+            } else if (type === '5year') {
+                const txt = '摸鱼派5岁啦';
+                let url = document.getElementById('badge5yUrl').value;
+                if (!url && currentUser && currentUser.avatar) url = currentUser.avatar;
+                if (!url) url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+                const backcolor = document.getElementById('badge5yBack').value.substring(1);
+                const fontcolor = document.getElementById('badge5yFont').value.substring(1);
+                let genUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(txt)}&url=${encodeURIComponent(url)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
+                const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+                optionalParams.forEach(param => {
+                    const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
+                    const value = document.getElementById(inputId).value;
+                    if (value !== '') genUrl += `&${param}=${value}`;
+                });
+                document.getElementById('badge5yPreview').src = genUrl;
             }
-            if (!url) {
-                url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
-            }
-            const backcolor = document.getElementById('badge5yBack').value.substring(1);
-            const fontcolor = document.getElementById('badge5yFont').value.substring(1);
-            let genUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(txt)}&url=${encodeURIComponent(url)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
-            const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
-            optionalParams.forEach(param => {
-                const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
-                const value = document.getElementById(inputId).value;
-                if (value !== '') {
-                    genUrl += `&${param}=${value}`;
-                }
-            });
-            document.getElementById('badge5yPreview').src = genUrl;
         }
         // 包装为防抖版本
-        const debouncedUpdateBadge2025Preview = debounce(updateBadge2025Preview, 600);
-        const debouncedUpdateBadge5YearPreview = debounce(updateBadge5YearPreview, 600);
+        const debouncedUpdateBadge2025Preview = debounce(() => updateBadgePreview('2025'), 600);
+        const debouncedUpdateBadge5YearPreview = debounce(() => updateBadgePreview('5year'), 600);
 
         // 设置事件监听器
         function setupEventListeners() {
@@ -398,8 +386,8 @@
             });
 
             // 初始预览
-            updateBadge2025Preview();
-            updateBadge5YearPreview();
+            updateBadgePreview('2025');
+            updateBadgePreview('5year');
         }
 
         // 验证字段
@@ -425,49 +413,6 @@
             header.classList.toggle('active');
             const content = header.nextElementSibling;
             content.classList.toggle('active');
-        }
-
-        // 更新2025徽章预览
-        function updateBadge2025Preview() {
-            const backcolor = document.getElementById('badge2025Back').value.substring(1);
-            const fontcolor = document.getElementById('badge2025Font').value.substring(1);
-            const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
-            const url = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=2025&url=${encodeURIComponent(defaultImage)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
-
-            document.getElementById('badge2025Preview').src = url;
-        }
-
-        // 更新五周岁徽章预览
-        function updateBadge5YearPreview() {
-            const txt = '摸鱼派5岁啦';
-            let url = document.getElementById('badge5yUrl').value;
-
-            // 如果没有输入URL，使用用户头像
-            if (!url && currentUser && currentUser.avatar) {
-                url = currentUser.avatar;
-            }
-
-            // 如果还是没有URL，使用默认图片
-            if (!url) {
-                url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
-            }
-
-            const backcolor = document.getElementById('badge5yBack').value.substring(1);
-            const fontcolor = document.getElementById('badge5yFont').value.substring(1);
-
-            let genUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(txt)}&url=${encodeURIComponent(url)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
-
-            // 添加可选参数
-            const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
-            optionalParams.forEach(param => {
-                const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
-                const value = document.getElementById(inputId).value;
-                if (value !== '') {
-                    genUrl += `&${param}=${value}`;
-                }
-            });
-
-            document.getElementById('badge5yPreview').src = genUrl;
         }
 
         // 处理图片上传
@@ -737,9 +682,9 @@
 
         // 加载所有投票
         async function loadAllVotes() {
-            loadArticles('keyword', 'activity1Votes');
-            loadArticles('badge2025', 'activity2Votes');
-            loadArticles('badge5year', 'activity3Votes');
+            await loadArticles('keyword', 'activity1Votes');
+            await loadArticles('badge2025', 'activity2Votes');
+            await loadArticles('badge5year', 'activity3Votes');
         }
 
         // 加载文章列表��关键词活动）
@@ -765,7 +710,7 @@
             }
         }
 
-        // 渲染文章列表
+        // 渲染文��列表
         function renderArticles(articles, stats, activityId, containerId) {
             const container = document.getElementById(containerId);
 
