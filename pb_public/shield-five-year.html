@@ -1103,6 +1103,8 @@
 
                 if (response.ok) {
                     alert('已取消投票！');
+                    // 立即清除本地投票记录
+                    delete userVotes[activityId];
                     await loadUserVotes();
                     await loadVoteQuotas();
                     loadAllVotes();
