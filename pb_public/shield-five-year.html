@@ -266,12 +266,16 @@
                 </div>
                 <div class="form-group">
                     <label for="badge5yImageUpload">上传徽章图片</label>
-                    <input type="file" id="badge5yImageUpload" accept="image/*" onchange="handleImageUpload(event)">
-                    <small style="color: #666; display: block; margin-top: 5px;">或者输入图片URL（默认使用您的头像）</small>
+                    <input type="file" id="badge5yImageUpload" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="handleImageUpload(event)">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        支持 JPG、PNG、WEBP 格式，不建议使用透明图层（会影响效果）<br>
+                        上传图片后需要提交设计方案才能预览最终效果
+                    </small>
                 </div>
                 <div class="form-group">
                     <label for="badge5yUrl">徽章图片URL</label>
                     <input type="text" id="badge5yUrl" placeholder="默认使用您的头像">
+                    <small style="color: #666; display: block; margin-top: 5px;">如果上传了图片，此字段将自动填充</small>
                 </div>
                 <div class="color-input-group">
                     <div class="form-group">
@@ -641,39 +645,86 @@
         }
 
         // 处理图片上传
+        let uploadedImageFile = null;
+
         async function handleImageUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             // 检查文件类型
-            if (!file.type.startsWith('image/')) {
-                alert('请选择图片文件');
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('只支持 JPG、PNG、WEBP 格式的图片');
+                event.target.value = '';
                 return;
             }
 
             // 检查文件大小（限制5MB）
             if (file.size > 5 * 1024 * 1024) {
                 alert('图片大小不能超过5MB');
+                event.target.value = '';
                 return;
             }
 
+            // 检查图片是否有透明通道
             try {
-                // 创建FormData上传文件
-                const formData = new FormData();
-                formData.append('file', file);
+                const hasTransparency = await checkImageTransparency(file);
+                if (hasTransparency) {
+                    if (!confirm('检测到图片包含透明图层，这可能会影响最终效果。是否继续？')) {
+                        event.target.value = '';
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('检查图片透明度失败:', error);
+            }
 
-                // 这里需要调用摸鱼派的文件上传API
-                // 暂时使用FileReader转换为base64作为备选方案
+            // 保存文件引用，等待提交时上传
+            uploadedImageFile = file;
+
+            // 清空URL输入框（因为要使用上传的图片）
+            document.getElementById('badge5yUrl').value = '';
+            document.getElementById('badge5yUrl').placeholder = '已选择上传图片';
+
+            alert('图片已选择，请提交设计方案后查看最终效果');
+        }
+
+        // 检查图片是否有透明通道
+        function checkImageTransparency(file) {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    // 直接使用URL（实际应该上传到服务器）
-                    alert('图片上传功能需要对接摸鱼派文件上传API。\n请手动上传图片后填入URL。');
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+
+                        try {
+                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            const data = imageData.data;
+
+                            // 检查是否有透明像素（alpha < 255）
+                            for (let i = 3; i < data.length; i += 4) {
+                                if (data[i] < 255) {
+                                    resolve(true);
+                                    return;
+                                }
+                            }
+                            resolve(false);
+                        } catch (error) {
+                            // 如果无法读取像素数据（可能是跨域），假设没有透明度
+                            resolve(false);
+                        }
+                    };
+                    img.onerror = () => reject(new Error('图片加载失败'));
+                    img.src = e.target.result;
                 };
+                reader.onerror = () => reject(new Error('文件读取失败'));
                 reader.readAsDataURL(file);
-            } catch (error) {
-                console.error('图片上传失败:', error);
-                alert('图片上传失败，请重试');
-            }
+            });
         }
 
         // 提交关键词
@@ -744,27 +795,25 @@
             const backcolor = document.getElementById('badge2025Back').value.substring(1);
             const fontcolor = document.getElementById('badge2025Font').value.substring(1);
 
-
             try {
                 const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
+
+                // 使用 FormData 提交所有数据
+                const formData = new FormData();
+                formData.append('activityId', ACTIVITY_IDS.badge2025);
+                formData.append('text', '2025');
+                formData.append('url', defaultImage);
+                formData.append('backcolor', backcolor);
+                formData.append('fontcolor', fontcolor);
+                formData.append('ver', '0.1');
+                formData.append('scale', '0.79');
+                formData.append('title', title);
+                formData.append('note', note);
 
                 // 第一步：创建徽章
                 const shieldResponse = await fetch('/activity-api/shield-five-year/shields', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        activityId: ACTIVITY_IDS.badge2025,
-                        text: '2025',
-                        url: defaultImage,
-                        backcolor: backcolor,
-                        fontcolor: fontcolor,
-                        ver: '0.1',
-                        scale: '0.79',
-                        title: title,
-                        note: note
-                    })
+                    body: formData
                 });
 
                 if (!shieldResponse.ok) {
@@ -826,59 +875,61 @@
             const text = '摸鱼派5岁啦';
             let url = document.getElementById('badge5yUrl').value;
 
-            // 如果没有输入URL，使用用户头像
-            if (!url && currentUser && currentUser.avatar) {
+            // 如果没有上传图片且没有输入URL，使��用户头像
+            if (!uploadedImageFile && !url && currentUser && currentUser.avatar) {
                 url = currentUser.avatar;
             }
 
             // 如果还是没有URL，使用默认图片
-            if (!url) {
+            if (!uploadedImageFile && !url) {
                 url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
             }
 
             const backcolor = document.getElementById('badge5yBack').value.substring(1);
             const fontcolor = document.getElementById('badge5yFont').value.substring(1);
 
-
-            const shieldData = {
-                activityId: ACTIVITY_IDS.badge5year,
-                text: text,
-                url: url,
-                backcolor: backcolor,
-                fontcolor: fontcolor,
-                ver: '0.1',
-                scale: '0.79',
-                title: title,
-                note: note
-            };
-
-            // 添加可选参数
-            const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
-            optionalParams.forEach(param => {
-                const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
-                const value = document.getElementById(inputId).value;
-                if (value !== '') {
-                    shieldData[param] = value;
-                }
-            });
-
             try {
-                const response = await fetch('/activity-api/shield-five-year/shields', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(shieldData)
+                // 统一使用 FormData 提交所有数据
+                const formData = new FormData();
+                formData.append('activityId', ACTIVITY_IDS.badge5year);
+                formData.append('text', text);
+                formData.append('url', url);
+                formData.append('backcolor', backcolor);
+                formData.append('fontcolor', fontcolor);
+                formData.append('ver', '0.1');
+                formData.append('scale', '0.79');
+                formData.append('title', title);
+                formData.append('note', note);
+
+                // 添加可选参数
+                const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+                optionalParams.forEach(param => {
+                    const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
+                    const value = document.getElementById(inputId).value;
+                    if (value !== '') {
+                        formData.append(param, value);
+                    }
                 });
 
-                if (!response.ok) {
-                    const error = await response.json();
+                // 如果有上传的图片，添加到 FormData
+                if (uploadedImageFile) {
+                    formData.append('img', uploadedImageFile);
+                }
+
+                // 第一步：创建徽章
+                const shieldResponse = await fetch('/activity-api/shield-five-year/shields', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!shieldResponse.ok) {
+                    const error = await shieldResponse.json();
                     alert(error.message || '徽章保存失败');
                     return;
                 }
 
-                const shieldResponse = await response.json();
-                const shieldId = shieldResponse.shield?.id;
+                const shieldData = await shieldResponse.json();
+                const shieldId = shieldData.shield?.id;
 
                 // 第二步：创建文章并绑定徽章
                 const articleResponse = await fetch('/activity-api/shield-five-year/articles', {
@@ -895,9 +946,11 @@
                 });
 
                 if (articleResponse.ok) {
-                    alert('五周岁徽章设计提交成功！');
+                    alert('五周岁徽章设计提交成功！' + (uploadedImageFile ? '图片已上传，刷新页面即可查看最终效果。' : ''));
                     document.getElementById('badge5yTitle').value = '';
                     document.getElementById('badge5yNote').value = '';
+                    document.getElementById('badge5yImageUpload').value = '';
+                    uploadedImageFile = null;
                     await loadUserSubmissions();
                     showForms();
                     loadArticles('badge5year', 'activity3Votes');
@@ -1232,8 +1285,11 @@
             } else if (activityKey === 'badge5year') {
                 document.getElementById('badge5yTitle').value = submission.title || '';
                 document.getElementById('badge5yNote').value = submission.content || '';
+                document.getElementById('badge5yImageUpload').value = '';
+                uploadedImageFile = null; // 重置上传的图片
                 if (submission.shield) {
                     document.getElementById('badge5yUrl').value = submission.shield.url || '';
+                    document.getElementById('badge5yUrl').placeholder = '默认使用您的头像';
                     document.getElementById('badge5yBack').value = '#' + (submission.shield.backcolor || 'db5a6b');
                     document.getElementById('badge5yFont').value = '#' + (submission.shield.fontcolor || 'ffffff');
                     if (submission.shield.size) document.getElementById('badge5ySize').value = submission.shield.size;
@@ -1333,20 +1389,18 @@
                 const submission = userSubmissions[ACTIVITY_IDS.badge2025];
                 const shieldId = submission?.shieldId;
 
-                // 更新徽章
+                // 更新徽章 - 使用 FormData
                 if (shieldId) {
+                    const formData = new FormData();
+                    formData.append('articleId', articleId);
+                    formData.append('backcolor', backcolor);
+                    formData.append('fontcolor', fontcolor);
+                    formData.append('title', title);
+                    formData.append('note', note);
+
                     const shieldResponse = await fetch(`/activity-api/shield-five-year/shields/${shieldId}`, {
                         method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            articleId: articleId,
-                            backcolor: backcolor,
-                            fontcolor: fontcolor,
-                            title: title,
-                            note: note
-                        })
+                        body: formData
                     });
 
                     if (!shieldResponse.ok) {
@@ -1404,49 +1458,49 @@
             const note = document.getElementById('badge5yNote').value.trim();
             let url = document.getElementById('badge5yUrl').value;
 
-            if (!url && currentUser && currentUser.avatar) {
+            if (!uploadedImageFile && !url && currentUser && currentUser.avatar) {
                 url = currentUser.avatar;
             }
 
-            if (!url) {
+            if (!uploadedImageFile && !url) {
                 url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
             }
 
             const backcolor = document.getElementById('badge5yBack').value.substring(1);
             const fontcolor = document.getElementById('badge5yFont').value.substring(1);
 
-            const shieldData = {
-                url: url,
-                backcolor: backcolor,
-                fontcolor: fontcolor,
-                title: title,
-                note: note
-            };
-
-            const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
-            optionalParams.forEach(param => {
-                const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
-                const value = document.getElementById(inputId).value;
-                if (value !== '') {
-                    shieldData[param] = value;
-                }
-            });
-
             try {
                 const submission = userSubmissions[ACTIVITY_IDS.badge5year];
                 const shieldId = submission?.shieldId;
 
-                // 添加articleId到shieldData（使用函数参数中的articleId）
-                shieldData.articleId = articleId;
-
-                // 更新徽章
+                // 更新徽章 - 统一使用 FormData
                 if (shieldId) {
+                    const formData = new FormData();
+                    formData.append('articleId', articleId);
+                    formData.append('url', url);
+                    formData.append('backcolor', backcolor);
+                    formData.append('fontcolor', fontcolor);
+                    formData.append('title', title);
+                    formData.append('note', note);
+
+                    // 添加可选参数
+                    const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+                    optionalParams.forEach(param => {
+                        const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
+                        const value = document.getElementById(inputId).value;
+                        if (value !== '') {
+                            formData.append(param, value);
+                        }
+                    });
+
+                    // 如果有上传的图片，添加到 FormData
+                    if (uploadedImageFile) {
+                        formData.append('img', uploadedImageFile);
+                    }
+
                     const shieldResponse = await fetch(`/activity-api/shield-five-year/shields/${shieldId}`, {
                         method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(shieldData)
+                        body: formData
                     });
 
                     if (!shieldResponse.ok) {
@@ -1469,9 +1523,11 @@
                 });
 
                 if (articleResponse.ok) {
-                    alert('五周岁徽章设计更新成功！');
+                    alert('五周岁徽章设计更新成功！' + (uploadedImageFile ? '图片已上传，刷新页面即可查看最终效果。' : ''));
                     document.getElementById('badge5yTitle').value = '';
                     document.getElementById('badge5yNote').value = '';
+                    document.getElementById('badge5yImageUpload').value = '';
+                    uploadedImageFile = null;
                     document.querySelector('#activity3Form .btn').textContent = '提交设计方案';
                     document.querySelector('#activity3Form .btn').onclick = submitBadge5Year;
                     await loadUserSubmissions();

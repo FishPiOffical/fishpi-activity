@@ -369,7 +369,7 @@ func (shield *Shield) Img() string {
 	return shield.GetString(ShieldsFieldImg)
 }
 
-func (shield *Shield) SetImg(value string) {
+func (shield *Shield) SetImg(value any) {
 	shield.Set(ShieldsFieldImg, value)
 }
 

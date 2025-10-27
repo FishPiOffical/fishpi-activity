@@ -68,30 +68,25 @@ func (controller *ShieldFiveYearController) CheckLogin(event *core.RequestEvent)
 
 // CreateShield 创建徽章
 func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) error {
-	data := struct {
-		ActivityId string `json:"activityId"`
-		Text       string `json:"text"`
-		Url        string `json:"url"`
-		Backcolor  string `json:"backcolor"`
-		Fontcolor  string `json:"fontcolor"`
-		Ver        string `json:"ver"`
-		Scale      string `json:"scale"`
-		Size       string `json:"size"`
-		Border     string `json:"border"`
-		BarLen     string `json:"barlen"`
-		Fontsize   string `json:"fontsize"`
-		BarRadius  string `json:"barradius"`
-		Shadow     string `json:"shadow"`
-		Anime      string `json:"anime"`
-		Title      string `json:"title"`
-		Note       string `json:"note"`
-	}{}
+	// 获取表单参数
+	activityId := e.Request.FormValue("activityId")
+	text := e.Request.FormValue("text")
+	url := e.Request.FormValue("url")
+	backcolor := e.Request.FormValue("backcolor")
+	fontcolor := e.Request.FormValue("fontcolor")
+	ver := e.Request.FormValue("ver")
+	scale := e.Request.FormValue("scale")
+	size := e.Request.FormValue("size")
+	border := e.Request.FormValue("border")
+	barLen := e.Request.FormValue("barlen")
+	fontsize := e.Request.FormValue("fontsize")
+	barRadius := e.Request.FormValue("barradius")
+	shadow := e.Request.FormValue("shadow")
+	anime := e.Request.FormValue("anime")
+	title := e.Request.FormValue("title")
+	note := e.Request.FormValue("note")
 
-	if err := e.BindBody(&data); err != nil {
-		return e.BadRequestError("参数错误", err)
-	}
-
-	if data.ActivityId == "" || data.Text == "" {
+	if activityId == "" || text == "" {
 		return e.BadRequestError("活动ID和文本不能为空", nil)
 	}
 
@@ -102,7 +97,7 @@ func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) e
 		model.DbNameShields,
 		"activityId = {:activityId} && userId = {:userId}",
 		map[string]any{
-			"activityId": data.ActivityId,
+			"activityId": activityId,
 			"userId":     user.Id,
 		},
 	)
@@ -121,56 +116,105 @@ func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) e
 	} else {
 		// 创建新徽章
 		shield = model.NewShieldFromCollection(collection)
-		shield.Set("activityId", data.ActivityId)
+		shield.Set("activityId", activityId)
 		shield.Set("userId", user.Id)
 	}
 
-	shield.SetText(data.Text)
-	shield.SetUrl(data.Url)
-	shield.SetBackcolor(data.Backcolor)
-	shield.SetFontcolor(data.Fontcolor)
+	shield.SetText(text)
+	shield.SetBackcolor(backcolor)
+	shield.SetFontcolor(fontcolor)
 
 	// 保存标题和设计思路
-	if data.Title != "" {
-		shield.Set("title", data.Title)
+	if title != "" {
+		shield.Set("title", title)
 	}
-	if data.Note != "" {
-		shield.Set("note", data.Note)
-	}
-
-	if data.Ver != "" {
-		shield.Set(model.ShieldsFieldVer, data.Ver)
-	}
-	if data.Scale != "" {
-		shield.Set(model.ShieldsFieldScale, data.Scale)
-	}
-	if data.Size != "" {
-		shield.Set(model.ShieldsFieldSize, data.Size)
-	}
-	if data.Border != "" {
-		shield.Set(model.ShieldsFieldBorder, data.Border)
-	}
-	if data.BarLen != "" {
-		shield.Set(model.ShieldsFieldBarLen, data.BarLen)
-	}
-	if data.Fontsize != "" {
-		shield.Set(model.ShieldsFieldFontsize, data.Fontsize)
-	}
-	if data.BarRadius != "" {
-		shield.Set(model.ShieldsFieldBarRadius, data.BarRadius)
-	}
-	if data.Shadow != "" {
-		shield.Set(model.ShieldsFieldShadow, data.Shadow)
-	}
-	if data.Anime != "" {
-		shield.Set(model.ShieldsFieldAnime, data.Anime)
+	if note != "" {
+		shield.Set("note", note)
 	}
 
-	if err := controller.app.Save(shield.ProxyRecord()); err != nil {
-		return e.InternalServerError("保存徽章失败", err)
+	if ver != "" {
+		shield.Set(model.ShieldsFieldVer, ver)
+	}
+	if scale != "" {
+		shield.Set(model.ShieldsFieldScale, scale)
+	}
+	if size != "" {
+		shield.Set(model.ShieldsFieldSize, size)
+	}
+	if border != "" {
+		shield.Set(model.ShieldsFieldBorder, border)
+	}
+	if barLen != "" {
+		shield.Set(model.ShieldsFieldBarLen, barLen)
+	}
+	if fontsize != "" {
+		shield.Set(model.ShieldsFieldFontsize, fontsize)
+	}
+	if barRadius != "" {
+		shield.Set(model.ShieldsFieldBarRadius, barRadius)
+	}
+	if shadow != "" {
+		shield.Set(model.ShieldsFieldShadow, shadow)
+	}
+	if anime != "" {
+		shield.Set(model.ShieldsFieldAnime, anime)
 	}
 
-	// 返回完整的徽章信息，包括预览URL
+	// 处理文件上传
+	uploadedFiles, err := e.FindUploadedFiles("img")
+	if err != nil && err != http.ErrMissingFile {
+		return e.BadRequestError("获取上传文件失败", err)
+	}
+
+	// 如果有上传文件，只保存第一张图片
+	if len(uploadedFiles) > 0 {
+		file := uploadedFiles[0]
+
+		// 验证文件大小（最大5MB）
+		if file.Size > 5*1024*1024 {
+			return e.BadRequestError("图片大小不能超过5MB", nil)
+		}
+
+		// 先保存 record 以获取 ID
+		if err := controller.app.Save(shield); err != nil {
+			return e.InternalServerError("保存徽章失败", err)
+		}
+
+		// 设置文件到 img 字段
+		shield.SetImg(file)
+
+		// 再次保存以处理文件上传
+		if err := controller.app.Save(shield); err != nil {
+			return e.InternalServerError("保存图片失败", err)
+		}
+
+		// 获取保存后的文件名并构建完整 URL（包含域名）
+		newImg := shield.Img()
+		if newImg != "" {
+			// 构建完整 URL: https://domain.com/api/files/collection/recordId/filename
+			baseURL := controller.app.Settings().Meta.AppURL
+			filesPath := shield.BaseFilesPath()
+			fullURL := baseURL + "/api/files/" + filesPath + "/" + newImg
+			shield.SetUrl(fullURL)
+
+			// 再次保存以更新 URL
+			if err := controller.app.Save(shield); err != nil {
+				controller.logger.Error("更新徽章URL失败", slog.Any("error", err))
+			}
+		}
+	} else {
+		// 没有上传文件，使用提供的 URL
+		if url != "" {
+			shield.SetUrl(url)
+		}
+
+		// 保存徽章
+		if err := controller.app.Save(shield); err != nil {
+			return e.InternalServerError("保存徽章失败", err)
+		}
+	}
+
+	// 返回完整的徽章信息
 	return e.JSON(http.StatusOK, map[string]any{
 		"id":      shield.Id,
 		"message": "徽章保存成功",
@@ -178,6 +222,7 @@ func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) e
 			"id":        shield.Id,
 			"text":      shield.Text(),
 			"url":       shield.Url(),
+			"img":       shield.Img(),
 			"backcolor": shield.Backcolor(),
 			"fontcolor": shield.Fontcolor(),
 			"title":     shield.GetString("title"),
@@ -190,31 +235,26 @@ func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) e
 func (controller *ShieldFiveYearController) GetShieldsByActivity(e *core.RequestEvent) error {
 	activityId := e.Request.PathValue("activityId")
 
-	records, err := controller.app.FindRecordsByFilter(
-		model.DbNameShields,
-		"activityId = {:activityId}",
-		"-created",
-		0,
-		0,
-		map[string]any{
-			"activityId": activityId,
-		},
-	)
-
-	if err != nil {
+	// 使用 RecordQuery 方式查询（recordproxy 风格）
+	var shields []*model.Shield
+	if err := controller.app.RecordQuery(model.DbNameShields).
+		Where(dbx.HashExp{"activityId": activityId}).
+		OrderBy("-created").
+		All(&shields); err != nil {
 		return e.InternalServerError("获取徽章列表失败", err)
 	}
 
 	// 扩展用户信息
-	result := make([]map[string]any, 0, len(records))
-	for _, record := range records {
-		shield := model.NewShield(record)
+	result := make([]map[string]any, 0, len(shields))
+	for _, shield := range shields {
 		userId := shield.GetString("userId")
 
-		userRecord, _ := controller.app.FindRecordById(model.DbNameUsers, userId)
+		// 使用 recordproxy 方式获取用户信息
+		var user *model.User
 		var userData map[string]any
-		if userRecord != nil {
-			user := model.NewUser(userRecord)
+		if err := controller.app.RecordQuery(model.DbNameUsers).
+			Where(dbx.HashExp{model.CommonFieldId: userId}).
+			One(&user); err == nil && user != nil {
 			userData = map[string]any{
 				"id":       user.Id,
 				"name":     user.Name(),
@@ -227,6 +267,7 @@ func (controller *ShieldFiveYearController) GetShieldsByActivity(e *core.Request
 			"id":        shield.Id,
 			"text":      shield.Text(),
 			"url":       shield.Url(),
+			"img":       shield.Img(),
 			"backcolor": shield.Backcolor(),
 			"fontcolor": shield.Fontcolor(),
 			"title":     shield.GetString("title"),
@@ -294,7 +335,7 @@ func (controller *ShieldFiveYearController) CreateArticle(e *core.RequestEvent) 
 		article.SetShieldId(data.ShieldId)
 	}
 
-	if err := controller.app.Save(article.ProxyRecord()); err != nil {
+	if err := controller.app.Save(article); err != nil {
 		return e.InternalServerError("保存文章失败", err)
 	}
 
@@ -462,7 +503,7 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 	voteLog.SetToUserId(data.ToUserId)
 	voteLog.SetComment(data.Comment)
 
-	if err := controller.app.Save(voteLog.ProxyRecord()); err != nil {
+	if err := controller.app.Save(voteLog); err != nil {
 		return e.InternalServerError("保存投票失败", err)
 	}
 
@@ -599,15 +640,9 @@ func (controller *ShieldFiveYearController) UpdateShield(e *core.RequestEvent) e
 	id := e.Request.PathValue("id")
 	authRecord := e.Auth
 
-	// 解析请求体
-	var data map[string]any
-	if err := e.BindBody(&data); err != nil {
-		return e.BadRequestError("参数错误", err)
-	}
-
-	// 获取文章ID
-	articleId, ok := data["articleId"].(string)
-	if !ok || articleId == "" {
+	// 获取表单参数
+	articleId := e.Request.FormValue("articleId")
+	if articleId == "" {
 		return e.BadRequestError("文章ID不能为空", nil)
 	}
 
@@ -632,67 +667,111 @@ func (controller *ShieldFiveYearController) UpdateShield(e *core.RequestEvent) e
 
 	shield := model.NewShield(shieldRecord)
 
-	// 更新徽章字段
-	if text, ok := data["text"].(string); ok {
+	// 更新徽章字段（从表单获取）
+	if text := e.Request.FormValue("text"); text != "" {
 		shield.SetText(text)
 	}
-	if url, ok := data["url"].(string); ok {
+	if url := e.Request.FormValue("url"); url != "" {
 		shield.SetUrl(url)
 	}
-	if backcolor, ok := data["backcolor"].(string); ok {
+	if backcolor := e.Request.FormValue("backcolor"); backcolor != "" {
 		shield.SetBackcolor(backcolor)
 	}
-	if fontcolor, ok := data["fontcolor"].(string); ok {
+	if fontcolor := e.Request.FormValue("fontcolor"); fontcolor != "" {
 		shield.SetFontcolor(fontcolor)
 	}
-	if ver, ok := data["ver"].(string); ok {
+	if ver := e.Request.FormValue("ver"); ver != "" {
 		shield.Set(model.ShieldsFieldVer, ver)
 	}
-	if scale, ok := data["scale"].(string); ok {
+	if scale := e.Request.FormValue("scale"); scale != "" {
 		shield.Set(model.ShieldsFieldScale, scale)
 	}
-	if size, ok := data["size"].(string); ok {
+	if size := e.Request.FormValue("size"); size != "" {
 		shield.Set(model.ShieldsFieldSize, size)
 	}
-	if border, ok := data["border"].(string); ok {
+	if border := e.Request.FormValue("border"); border != "" {
 		shield.Set(model.ShieldsFieldBorder, border)
 	}
-	if barLen, ok := data["barlen"].(string); ok {
+	if barLen := e.Request.FormValue("barlen"); barLen != "" {
 		shield.Set(model.ShieldsFieldBarLen, barLen)
 	}
-	if fontsize, ok := data["fontsize"].(string); ok {
+	if fontsize := e.Request.FormValue("fontsize"); fontsize != "" {
 		shield.Set(model.ShieldsFieldFontsize, fontsize)
 	}
-	if barRadius, ok := data["barradius"].(string); ok {
+	if barRadius := e.Request.FormValue("barradius"); barRadius != "" {
 		shield.Set(model.ShieldsFieldBarRadius, barRadius)
 	}
-	if shadow, ok := data["shadow"].(string); ok {
+	if shadow := e.Request.FormValue("shadow"); shadow != "" {
 		shield.Set(model.ShieldsFieldShadow, shadow)
 	}
-	if anime, ok := data["anime"].(string); ok {
+	if anime := e.Request.FormValue("anime"); anime != "" {
 		shield.Set(model.ShieldsFieldAnime, anime)
 	}
-	if title, ok := data["title"].(string); ok {
+	if title := e.Request.FormValue("title"); title != "" {
 		shield.Set("title", title)
 	}
-	if note, ok := data["note"].(string); ok {
+	if note := e.Request.FormValue("note"); note != "" {
 		shield.Set("note", note)
 	}
 
 	// 更新文章的徽章ID关联
 	article.SetShieldId(shield.Id)
 
+	// 处理文件上传 - 使用 FindUploadedFiles 方法
+	uploadedFiles, err := e.FindUploadedFiles("img")
+	if err != nil && err != http.ErrMissingFile {
+		return e.BadRequestError("获取上传文件失败", err)
+	}
+
+	// 如果有上传文件，只保存第一张图片
+	if len(uploadedFiles) > 0 {
+		file := uploadedFiles[0]
+
+		// 验证文件大小（最大5MB）
+		if file.Size > 5*1024*1024 {
+			return e.BadRequestError("图片大小不能超过5MB", nil)
+		}
+
+		// 设置文件到 img 字段
+		shield.SetImg(file)
+
+		// 保存以更新文件
+		if err := controller.app.Save(shield); err != nil {
+			return e.InternalServerError("保存图片失败", err)
+		}
+
+		// 获取保存后的文件名并构建完整 URL（包含域名）
+		newImg := shield.Img()
+		if newImg != "" {
+			// 构建完整 URL: https://domain.com/api/files/collection/recordId/filename
+			baseURL := controller.app.Settings().Meta.AppURL
+			filesPath := shield.BaseFilesPath()
+			fullURL := baseURL + "/api/files/" + filesPath + "/" + newImg
+			shield.SetUrl(fullURL)
+		}
+	}
+
 	// 保存徽章
-	if err := controller.app.Save(shield.ProxyRecord()); err != nil {
+	if err = controller.app.Save(shield); err != nil {
 		return e.InternalServerError("更新徽章失败", err)
 	}
 
 	// 保存文章
-	if err := controller.app.Save(article.ProxyRecord()); err != nil {
+	if err = controller.app.Save(article); err != nil {
 		return e.InternalServerError("更新文章失败", err)
 	}
 
-	return e.JSON(http.StatusOK, shield.ProxyRecord())
+	return e.JSON(http.StatusOK, map[string]any{
+		"message": "徽章更新成功",
+		"shield": map[string]any{
+			"id":        shield.Id,
+			"text":      shield.Text(),
+			"url":       shield.Url(),
+			"img":       shield.Img(),
+			"backcolor": shield.Backcolor(),
+			"fontcolor": shield.Fontcolor(),
+		},
+	})
 }
 
 // UpdateArticle 更新文章
