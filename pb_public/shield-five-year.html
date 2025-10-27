@@ -91,7 +91,16 @@
         .color-input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         /* 徽章预览 */
         .shield-preview { margin: 20px 0; padding: 20px; background: #f5f5f5; border-radius: 8px; text-align: center; }
-        .shield-preview img { max-width: 100%; height: auto; margin: 10px 0; }
+        .shield-preview img {
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .shield-preview img:hover {
+            transform: scale(1.05);
+        }
         /* 折叠区块 */
         .collapsible-section { margin: 20px 0; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
         .collapsible-header {
@@ -153,6 +162,56 @@
             line-height: 1.6;
             margin-left: 40px;
             font-size: 0.9rem;
+        }
+        /* 徽章预览弹窗 */
+        .badge-preview-modal-content {
+            max-width: 500px;
+        }
+        .badge-preview-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .badge-preview-avatar {
+            max-width: 210px;
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .badge-preview-nickname {
+            font-size: 26px;
+            line-height: 30px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .badge-preview-name {
+            font-size: 20px;
+            font-weight: 300;
+            line-height: 26px;
+            color: #787777;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .badge-preview-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            width: 100%;
+        }
+        .badge-preview-badges img {
+            max-width: 150px;
+            height: auto;
+            cursor: default;
+            transition: transform 0.2s;
+        }
+        .badge-preview-badges img:hover {
+            transform: scale(1.05);
         }
         /* 编辑按钮 */
         .btn-secondary { background: #6c757d; }
@@ -580,6 +639,19 @@
                 <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
             <div id="voteModalContent">
+                <p>加载中...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 徽章预览模态框 -->
+    <div id="badgePreviewModal" class="modal" onclick="closeBadgePreview(event)">
+        <div class="modal-content badge-preview-modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>徽章预览</h3>
+                <button class="modal-close" onclick="closeBadgePreview()">&times;</button>
+            </div>
+            <div id="badgePreviewContent" class="badge-preview-content">
                 <p>加载中...</p>
             </div>
         </div>
@@ -1055,6 +1127,58 @@
             // 初始预览
             updateBadgePreview('2025');
             updateBadgePreview('5year');
+
+            // 为徽章预览图片添加点击事件
+            document.getElementById('badge2025Preview').addEventListener('click', function() {
+                if (!this.src || this.src === '' || this.src.endsWith('/shield-five-year.html')) return;
+                const backcolor = document.getElementById('badge2025Back').value.substring(1);
+                const fontcolor = document.getElementById('badge2025Font').value.substring(1);
+                const defaultImage = 'https://file.fishpi.cn/2025/10/snake-d672120f.jpg';
+                const shield = {
+                    text: '2025',
+                    url: defaultImage,
+                    backcolor: backcolor,
+                    fontcolor: fontcolor,
+                    ver: '0.1',
+                    scale: '0.79'
+                };
+                const avatar = currentUser?.avatar || 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+                const nickname = currentUser?.nickname || currentUser?.name || '游客';
+                const name = currentUser?.name || '';
+                showBadgePreview(avatar, nickname, name, shield, 'article');
+            });
+
+            document.getElementById('badge5yPreview').addEventListener('click', function() {
+                if (!this.src || this.src === '' || this.src.endsWith('/shield-five-year.html')) return;
+                const txt = '摸鱼派5岁啦';
+                let url = document.getElementById('badge5yUrl').value;
+                if (!url && currentUser && currentUser.avatar) url = currentUser.avatar;
+                if (!url) url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+                const backcolor = document.getElementById('badge5yBack').value.substring(1);
+                const fontcolor = document.getElementById('badge5yFont').value.substring(1);
+
+                const shield = {
+                    text: txt,
+                    url: url,
+                    backcolor: backcolor,
+                    fontcolor: fontcolor,
+                    ver: '0.1',
+                    scale: '0.79'
+                };
+
+                // 添加可选参数
+                const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+                optionalParams.forEach(param => {
+                    const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
+                    const value = document.getElementById(inputId).value;
+                    if (value !== '') shield[param] = value;
+                });
+
+                const avatar = currentUser?.avatar || 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
+                const nickname = currentUser?.nickname || currentUser?.name || '游客';
+                const name = currentUser?.name || '';
+                showBadgePreview(avatar, nickname, name, shield, 'age');
+            });
         }
 
         // 验证字段
@@ -1496,9 +1620,21 @@
                 if (article.shield) {
                     const shield = article.shield;
                     const shieldUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(shield.text || '')}&backcolor=${shield.backcolor || ''}&fontcolor=${shield.fontcolor || ''}${shield.url ? '&url=' + encodeURIComponent(shield.url) : ''}`;
+
+                    // 确定活动类型（用于加载对应的历年徽章）
+                    const activityType = activityKey === 'badge2025' || activityKey === 'badge5year' ? 'article' : 'age';
+
+                    // 将shield对象转为JSON字符串，用于点击事件传参
+                    const shieldJson = JSON.stringify(shield).replace(/"/g, '&quot;');
+
                     shieldHtml = `
                         <div style="margin: 10px 0;">
-                            <img src="${shieldUrl}" alt="徽章" style="max-width: 100%;" referrerpolicy="no-referrer">
+                            <img src="${shieldUrl}" alt="徽章"
+                                 style="max-width: 100%; cursor: pointer; transition: transform 0.2s;"
+                                 referrerpolicy="no-referrer"
+                                 onmouseover="this.style.transform='scale(1.05)'"
+                                 onmouseout="this.style.transform='scale(1)'"
+                                 onclick='showBadgePreview("${escapeHtml(article.user?.avatar || '')}", "${escapeHtml(article.user?.nickname || article.user?.name || '匿名')}", "${escapeHtml(article.user?.name || '')}", ${shieldJson}, "${activityType}")'>
                         </div>
                     `;
                 }
@@ -1687,6 +1823,77 @@
         function closeModal(event) {
             if (!event || event.target.id === 'voteModal') {
                 document.getElementById('voteModal').classList.remove('show');
+            }
+        }
+
+        // 关闭徽章预览弹窗
+        function closeBadgePreview(event) {
+            if (!event || event.target.id === 'badgePreviewModal') {
+                document.getElementById('badgePreviewModal').classList.remove('show');
+            }
+        }
+
+        // 显示徽章预览
+        async function showBadgePreview(userAvatar, nickname, name, currentShield, activityType) {
+            const modal = document.getElementById('badgePreviewModal');
+            const modalContent = document.getElementById('badgePreviewContent');
+
+            modal.classList.add('show');
+            modalContent.innerHTML = '<p>加载中...</p>';
+
+            try {
+                // 获取历年数据
+                const response = await fetch('/api/yearly-histories');
+                let allBadges = [];
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const histories = data.items || [];
+
+                    // 根据活动类型收集历年徽章
+                    histories.forEach(history => {
+                        if (activityType === 'article' && history.articleShield) {
+                            allBadges.push(history.articleShield);
+                        } else if (activityType === 'age' && history.ageShield) {
+                            allBadges.push(history.ageShield);
+                        }
+                    });
+                }
+
+                // 添加当前预览的徽章
+                if (currentShield) {
+                    allBadges.push(currentShield);
+                }
+
+                // 构建徽章HTML
+                const badgesHtml = allBadges.map(shield => {
+                    let shieldUrl = `https://badge.aweoo.com/gen?ver=${shield.ver || '0.1'}&scale=${shield.scale || '0.79'}&txt=${encodeURIComponent(shield.text || '')}&backcolor=${shield.backcolor || ''}&fontcolor=${shield.fontcolor || ''}`;
+                    if (shield.url) {
+                        shieldUrl += `&url=${encodeURIComponent(shield.url)}`;
+                    }
+                    // 添加可选参数
+                    const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+                    optionalParams.forEach(param => {
+                        if (shield[param] !== undefined && shield[param] !== '') {
+                            shieldUrl += `&${param}=${shield[param]}`;
+                        }
+                    });
+                    return `<img src="${shieldUrl}" alt="徽章" referrerpolicy="no-referrer">`;
+                }).join('');
+
+                // 构建完整的预览内容
+                modalContent.innerHTML = `
+                    <img src="${escapeHtml(userAvatar)}" alt="头像" class="badge-preview-avatar"
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22210%22 height=%22210%22><rect width=%22210%22 height=%22210%22 fill=%22%23ddd%22/></svg>'">
+                    <div class="badge-preview-nickname">${escapeHtml(nickname)}</div>
+                    <div class="badge-preview-name">${escapeHtml(name)}</div>
+                    <div class="badge-preview-badges">
+                        ${badgesHtml || '<p>暂无徽章</p>'}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('加载徽章预览失败:', error);
+                modalContent.innerHTML = '<p class="error">加载失败</p>';
             }
         }
 
