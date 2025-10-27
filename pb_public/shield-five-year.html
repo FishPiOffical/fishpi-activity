@@ -200,7 +200,7 @@
         .badge-preview-badges {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 8px;
             justify-content: center;
             width: 100%;
         }
@@ -1622,7 +1622,9 @@
                     const shieldUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(shield.text || '')}&backcolor=${shield.backcolor || ''}&fontcolor=${shield.fontcolor || ''}${shield.url ? '&url=' + encodeURIComponent(shield.url) : ''}`;
 
                     // 确定活动类型（用于加载对应的历年徽章）
-                    const activityType = activityKey === 'badge2025' || activityKey === 'badge5year' ? 'article' : 'age';
+                    // badge5year(五周岁徽章)应该展示历年周岁徽章(age)
+                    // badge2025(流行色徽章)应该展示历年流行色徽章(article)
+                    const activityType = activityKey === 'badge5year' ? 'age' : 'article';
 
                     // 将shield对象转为JSON字符串，用于点击事件传参
                     const shieldJson = JSON.stringify(shield).replace(/"/g, '&quot;');
