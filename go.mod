@@ -7,7 +7,7 @@ require (
 	github.com/imroc/req/v3 v3.55.0
 	github.com/lxzan/gws v1.8.9
 	github.com/pocketbase/dbx v1.11.0
-	github.com/pocketbase/pocketbase v0.30.4
+	github.com/pocketbase/pocketbase v0.31.0
 )
 
 require (
@@ -56,7 +56,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	go.uber.org/mock v0.5.2 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/exp v0.0.0-20251009144603-d2f985daa21b // indirect
+	golang.org/x/exp v0.0.0-20251017212417-90e834f514db // indirect
 	golang.org/x/image v0.32.0 // indirect
 	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/net v0.46.0 // indirect
