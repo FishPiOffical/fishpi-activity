@@ -109,11 +109,22 @@
         .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; }
         .modal-close:hover { color: #333; }
         .voter-list { list-style: none; padding: 0; }
-        .voter-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .voter-item { padding: 15px; border-bottom: 1px solid #eee; }
         .voter-item:last-child { border-bottom: none; }
+        .voter-header { display: flex; align-items: center; margin-bottom: 8px; }
         .voter-avatar { width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; }
-        .voter-name { color: #333; }
-        .voter-time { color: #999; font-size: 0.875rem; margin-left: auto; }
+        .voter-info { display: flex; flex-direction: column; flex: 1; }
+        .voter-name { color: #333; font-weight: 600; }
+        .voter-time { color: #999; font-size: 0.75rem; margin-top: 2px; }
+        .voter-comment {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 6px;
+            color: #666;
+            line-height: 1.6;
+            margin-left: 40px;
+            font-size: 0.9rem;
+        }
         /* 编辑按钮 */
         .btn-secondary { background: #6c757d; }
         .btn-secondary:hover { background: #5a6268; }
@@ -1049,6 +1060,14 @@
                 return;
             }
 
+            // 弹窗让用户输入评论（可选）
+            const comment = prompt('请输入您的评论（可选，按取消则不填写评论）：');
+
+            // 用户点击了取消按钮
+            if (comment === null) {
+                return;
+            }
+
             try {
                 const response = await fetch('/activity-api/shield-five-year/vote', {
                     method: 'POST',
@@ -1057,7 +1076,8 @@
                     },
                     body: JSON.stringify({
                         activityId: activityId,
-                        toUserId: targetUserId
+                        toUserId: targetUserId,
+                        comment: comment.trim()
                     })
                 });
 
@@ -1140,13 +1160,21 @@
 
                     const votersHtml = voters.map(voter => {
                         const time = new Date(voter.created).toLocaleString('zh-CN');
+                        const comment = voter.comment ? escapeHtml(voter.comment) : '';
+                        const commentHtml = comment ? `<div class="voter-comment">${comment}</div>` : '';
+
                         return `
                             <div class="voter-item">
-                                <img src="${escapeHtml(voter.user?.avatar || '')}"
-                                     alt="avatar" class="voter-avatar"
-                                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2230%22 height=%2230%22><rect width=%2230%22 height=%2230%22 fill=%22%23ddd%22/></svg>'">
-                                <span class="voter-name">${escapeHtml(voter.user?.nickname || voter.user?.name || '匿名')}</span>
-                                <span class="voter-time">${time}</span>
+                                <div class="voter-header">
+                                    <img src="${escapeHtml(voter.user?.avatar || '')}"
+                                         alt="avatar" class="voter-avatar"
+                                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2230%22 height=%2230%22><rect width=%2230%22 height=%2230%22 fill=%22%23ddd%22/></svg>'">
+                                    <div class="voter-info">
+                                        <span class="voter-name">${escapeHtml(voter.user?.nickname || voter.user?.name || '匿名')}</span>
+                                        <span class="voter-time">${time}</span>
+                                    </div>
+                                </div>
+                                ${commentHtml}
                             </div>
                         `;
                     }).join('');
