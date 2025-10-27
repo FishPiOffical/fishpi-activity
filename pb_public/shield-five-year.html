@@ -435,70 +435,6 @@
             color: #2c3e50;
             margin-bottom: 5px;
         }
-        .reward-more {
-            font-size: 0.9rem;
-            color: #7f8c8d;
-            font-style: italic;
-        }
-        .reward-point {
-            font-weight: bold;
-            color: #27ae60;
-            font-size: 1.1rem;
-            white-space: nowrap;
-        }
-        /* 奖励展示 */
-        .rewards-section {
-            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            border: 2px solid #f39c12;
-        }
-        .rewards-section h3 {
-            color: #d35400;
-            font-size: 1.3rem;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .rewards-list {
-            display: grid;
-            gap: 12px;
-        }
-        .reward-item {
-            background: white;
-            padding: 15px;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: transform 0.2s;
-        }
-        .reward-item:hover {
-            transform: translateX(5px);
-        }
-        .reward-rank {
-            font-weight: bold;
-            color: #e74c3c;
-            font-size: 1.1rem;
-            min-width: 120px;
-        }
-        .reward-details {
-            flex: 1;
-            padding: 0 15px;
-        }
-        .reward-name {
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 5px;
-        }
-        .reward-more {
-            font-size: 0.9rem;
-            color: #7f8c8d;
-            font-style: italic;
-        }
         .reward-point {
             font-weight: bold;
             color: #27ae60;
@@ -1224,14 +1160,10 @@
                 const response = await fetch('/activity-api/shield-five-year/my-articles');
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('用户投稿数据:', data); // 调试日志
                     if (data.items) {
                         data.items.forEach(article => {
-                            console.log('文章数据:', article); // 调试日志
-                            console.log('activityId:', article.activityId); // 调试日志
                             userSubmissions[article.activityId] = article;
                         });
-                        console.log('userSubmissions:', userSubmissions); // 调试日志
                     }
                 }
             } catch (error) {
@@ -1364,7 +1296,28 @@
             };
         }
 
-        // 合并预览函数，去除重复
+        // 生成徽章URL的公共函数
+        function buildShieldUrl(shield) {
+            if (!shield) return '';
+
+            let url = `https://badge.aweoo.com/gen?ver=${shield.ver || '0.1'}&scale=${shield.scale || '0.79'}&txt=${encodeURIComponent(shield.text || '')}&backcolor=${shield.backcolor || ''}&fontcolor=${shield.fontcolor || ''}`;
+
+            if (shield.url) {
+                url += `&url=${encodeURIComponent(shield.url)}`;
+            }
+
+            // 添加可选参数
+            const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+            optionalParams.forEach(param => {
+                if (shield[param] !== undefined && shield[param] !== '') {
+                    url += `&${param}=${shield[param]}`;
+                }
+            });
+
+            return url;
+        }
+
+        // 更新徽章预览
         function updateBadgePreview(type) {
             if (type === '2025') {
                 const backcolor = document.getElementById('badge2025Back').value.substring(1);
@@ -1379,16 +1332,28 @@
                 if (!url) url = 'https://file.fishpi.cn/2022/02/奖牌-d667b38a.jpg';
                 const backcolor = document.getElementById('badge5yBack').value.substring(1);
                 const fontcolor = document.getElementById('badge5yFont').value.substring(1);
-                let genUrl = `https://badge.aweoo.com/gen?ver=0.1&scale=0.79&txt=${encodeURIComponent(txt)}&url=${encodeURIComponent(url)}&backcolor=${backcolor}&fontcolor=${fontcolor}`;
+
+                const shield = {
+                    text: txt,
+                    url: url,
+                    backcolor: backcolor,
+                    fontcolor: fontcolor,
+                    ver: '0.1',
+                    scale: '0.79'
+                };
+
+                // 添加可选参数
                 const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
                 optionalParams.forEach(param => {
                     const inputId = 'badge5y' + param.charAt(0).toUpperCase() + param.slice(1);
                     const value = document.getElementById(inputId).value;
-                    if (value !== '') genUrl += `&${param}=${value}`;
+                    if (value !== '') shield[param] = value;
                 });
-                document.getElementById('badge5yPreview').src = genUrl;
+
+                document.getElementById('badge5yPreview').src = buildShieldUrl(shield);
             }
         }
+
         // 包装为防抖版本
         const debouncedUpdateBadge2025Preview = debounce(() => updateBadgePreview('2025'), 600);
         const debouncedUpdateBadge5YearPreview = debounce(() => updateBadgePreview('5year'), 600);
