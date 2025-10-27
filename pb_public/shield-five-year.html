@@ -69,6 +69,62 @@
             background: rgba(255, 255, 255, 0.3);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
+        /* 导航栏用户信息 */
+        .nav-user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+        .nav-user-loading {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+        }
+        .nav-user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            object-fit: cover;
+            transition: all 0.3s;
+        }
+        .nav-user-avatar:hover {
+            border-color: white;
+            transform: scale(1.05);
+        }
+        .nav-user-name {
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 500;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .nav-user-btn {
+            color: white;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .nav-user-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-1px);
+        }
+        .nav-login-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        .nav-login-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+            border-color: white;
+        }
         /* 回到顶部按钮 */
         .back-to-top {
             position: fixed;
@@ -109,32 +165,21 @@
         }
         header h1 { font-size: 2.5rem; color: #333; margin-bottom: 10px; }
         header p { color: #666; font-size: 1.1rem; }
-        /* 用户信息 */
-        .user-info {
-            text-align: right;
-            margin-bottom: 20px;
-            color: white;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 10px;
-        }
-        .user-info .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid white;
-            object-fit: cover;
-        }
-        .user-info a {
-            color: white; text-decoration: none; background: rgba(255,255,255,0.2);
-            padding: 8px 16px; border-radius: 20px; margin-left: 10px; transition: background 0.3s;
-        }
-        .user-info a:hover { background: rgba(255,255,255,0.3); }
         /* 登录提示 */
         .login-prompt {
-            background: #fff3cd; border: 1px solid #ffc107; padding: 15px;
-            border-radius: 8px; margin-bottom: 20px; text-align: center;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 2px solid #ffc107;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+        }
+        .login-prompt p {
+            color: #856404;
+            font-size: 1rem;
+            font-weight: 500;
+            margin: 0;
         }
         /* 活动区块 */
         .activity-section {
@@ -612,19 +657,34 @@
             background: #5568d3;
         }
         @media (max-width: 768px) {
-            body { padding-top: 120px; } /* 移动端导航栏可能换行，需要更多空间 */
+            body { padding-top: 140px; } /* 移动端导航栏可能换行，需要更多空间 */
             header h1 { font-size: 1.8rem; }
             .color-input-group { grid-template-columns: 1fr; }
             .vote-list { grid-template-columns: 1fr; }
             .vote-item-keyword { font-size: 1.3rem; }
             .vote-item { padding: 10px; }
             .my-submission-display .submission-title { font-size: 1.3rem; }
-            .nav-container { justify-content: center; }
+            .nav-container {
+                justify-content: center;
+                flex-direction: column;
+                gap: 12px;
+            }
             .nav-logo { font-size: 1rem; }
-            .nav-links { gap: 8px; }
+            .nav-links {
+                gap: 8px;
+                justify-content: center;
+            }
             .nav-link {
                 font-size: 0.8rem;
                 padding: 5px 10px;
+            }
+            .nav-user-info {
+                width: 100%;
+                justify-content: center;
+                margin-left: 0;
+            }
+            .nav-user-name {
+                max-width: 100px;
             }
             .back-to-top {
                 width: 45px;
@@ -649,6 +709,9 @@
                 <a href="#activity3" class="nav-link" data-section="activity3">🏆 活动三</a>
                 <a href="#yearlyHistories" class="nav-link" data-section="yearlyHistories">📜 历年回顾</a>
             </div>
+            <div class="nav-user-info" id="navUserInfo">
+                <span class="nav-user-loading">加载中...</span>
+            </div>
         </div>
     </nav>
 
@@ -658,16 +721,12 @@
     </button>
 
     <div class="container">
-        <div class="user-info" id="userInfo">
-            <span id="userDisplay">加载中...</span>
-        </div>
         <header>
             <h1>🎉 摸鱼派五周年庆典</h1>
             <p>感谢陪伴，让我们一起庆祝摸鱼派五周岁生日！</p>
         </header>
         <div id="loginPrompt" class="login-prompt" style="display: none;">
             <p>💡 请先登录后参与活动设计和投票，未登录用户可以查看投票结果</p>
-            <a href="#" onclick="redirectToLogin(); return false;" class="btn">立即登录</a>
         </div>
         <!-- 活动一：五周年关键词 -->
         <div class="activity-section" id="activity1">
@@ -992,27 +1051,34 @@
                 if (response.ok) {
                     currentUser = await response.json();
                     isLoggedIn = true;
+
+                    // 显示用户信息到导航栏
                     const avatarHtml = currentUser.avatar
-                        ? `<img src="${escapeHtml(currentUser.avatar)}" alt="avatar" class="user-avatar" onerror="this.style.display='none'">`
+                        ? `<img src="${escapeHtml(currentUser.avatar)}" alt="avatar" class="nav-user-avatar" onerror="this.style.display='none'">`
                         : '';
-                    document.getElementById('userDisplay').innerHTML = `
+
+                    document.getElementById('navUserInfo').innerHTML = `
                         ${avatarHtml}
-                        <span>欢迎，${escapeHtml(currentUser.nickname || currentUser.name)}</span>
-                        <a href="/user/logout">退出登录</a>
+                        <span class="nav-user-name">${escapeHtml(currentUser.nickname || currentUser.name)}</span>
+                        <a href="/user/logout" class="nav-user-btn">退出登录</a>
                     `;
                 } else {
                     isLoggedIn = false;
-                    document.getElementById('userDisplay').innerHTML = `
-                        <a href="#" onclick="redirectToLogin(); return false;">登录</a>
+                    // 显示登录按钮到导航栏
+                    document.getElementById('navUserInfo').innerHTML = `
+                        <a href="#" onclick="redirectToLogin(); return false;" class="nav-user-btn nav-login-btn">登录</a>
                     `;
+                    // 显示登录提示
                     document.getElementById('loginPrompt').style.display = 'block';
                 }
             } catch (error) {
                 console.error('检查登录状态失败:', error);
                 isLoggedIn = false;
-                document.getElementById('userDisplay').innerHTML = `
-                    <a href="#" onclick="redirectToLogin(); return false;">登录</a>
+                // 显示登录按钮到导航栏
+                document.getElementById('navUserInfo').innerHTML = `
+                    <a href="#" onclick="redirectToLogin(); return false;" class="nav-user-btn nav-login-btn">登录</a>
                 `;
+                // 显示登录提示
                 document.getElementById('loginPrompt').style.display = 'block';
             }
         }
