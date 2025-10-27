@@ -26,7 +26,7 @@ func NewActivityController(event *core.ServeEvent) *ActivityController {
 
 func (controller *ActivityController) registerRoutes() {
 	controller.event.Router.GET("/api/activities", controller.GetActivities)
-	controller.event.Router.GET("/api/activities/{id}/rewards", controller.GetActivityRewards)
+	controller.event.Router.GET("/api/activities/{id}", controller.GetActivityRewards)
 }
 
 func (controller *ActivityController) GetActivities(e *core.RequestEvent) error {
@@ -174,6 +174,8 @@ func (controller *ActivityController) GetActivityRewards(e *core.RequestEvent) e
 
 	return e.JSON(http.StatusOK, map[string]interface{}{
 		"activityId": activityId,
+		"name":       activityModel.Name(),
+		"desc":       activityModel.Desc(),
 		"rewards":    rewardItems,
 	})
 }
