@@ -261,6 +261,7 @@
             margin: 12px 0 15px 0;
             line-height: 1.3;
             word-break: break-word;
+            text-align: center;
         }
         .vote-item-content {
             flex: 1;
@@ -717,7 +718,7 @@
                         <input type="color" id="badge5yFont" value="#ffffff" required>
                     </div>
                 </div>
-                <div class="collapsible-section">
+                <div class="collapsible-section" style="display: none;">
                     <div class="collapsible-header" onclick="toggleCollapsible(this)">
                         <span>高级选项 (可选)</span>
                         <span class="toggle-icon">▼</span>
@@ -960,6 +961,7 @@
                 if (keywordRewards) {
                     if (keywordRewards.name) {
                         updateActivityTitle('activity1', keywordRewards.name, keywordRewards.desc);
+                        updateNavLink('activity1', keywordRewards.name);
                     }
                     if (keywordRewards.rewards && keywordRewards.rewards.length > 0) {
                         displayRewards('activity1Rewards', keywordRewards.rewards);
@@ -968,6 +970,7 @@
                 if (badge2025Rewards) {
                     if (badge2025Rewards.name) {
                         updateActivityTitle('activity2', badge2025Rewards.name, badge2025Rewards.desc);
+                        updateNavLink('activity2', badge2025Rewards.name);
                     }
                     if (badge2025Rewards.rewards && badge2025Rewards.rewards.length > 0) {
                         displayRewards('activity2Rewards', badge2025Rewards.rewards);
@@ -976,6 +979,7 @@
                 if (badge5yearRewards) {
                     if (badge5yearRewards.name) {
                         updateActivityTitle('activity3', badge5yearRewards.name, badge5yearRewards.desc);
+                        updateNavLink('activity3', badge5yearRewards.name);
                     }
                     if (badge5yearRewards.rewards && badge5yearRewards.rewards.length > 0) {
                         displayRewards('activity3Rewards', badge5yearRewards.rewards);
@@ -1098,6 +1102,16 @@
             if (descDiv && desc) {
                 // PocketBase的rich editor返回HTML格式，直接设置innerHTML
                 descDiv.innerHTML = desc;
+            }
+        }
+
+        // 更新导航链接文本
+        function updateNavLink(activityId, name) {
+            const navLink = document.querySelector(`.nav-link[data-section="${activityId}"]`);
+            if (navLink && name) {
+                // 保留原有的图标（如果有的话）
+                const icon = navLink.textContent.match(/^[^\w\s]+/)?.[0] || '';
+                navLink.textContent = icon ? `${icon} ${name}` : name;
             }
         }
 
