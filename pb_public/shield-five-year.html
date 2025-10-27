@@ -131,10 +131,129 @@
         .btn-warning { background: #ffc107; color: #333; }
         .btn-warning:hover { background: #e0a800; }
         .btn-small { padding: 6px 12px; font-size: 0.875rem; }
+        /* 奖励展示 */
+        .rewards-section {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #f39c12;
+        }
+        .rewards-section h3 {
+            color: #d35400;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .rewards-list {
+            display: grid;
+            gap: 12px;
+        }
+        .reward-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+        .reward-item:hover {
+            transform: translateX(5px);
+        }
+        .reward-rank {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 1.1rem;
+            min-width: 120px;
+        }
+        .reward-details {
+            flex: 1;
+            padding: 0 15px;
+        }
+        .reward-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .reward-more {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        .reward-point {
+            font-weight: bold;
+            color: #27ae60;
+            font-size: 1.1rem;
+            white-space: nowrap;
+        }
+        /* 奖励展示 */
+        .rewards-section {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #f39c12;
+        }
+        .rewards-section h3 {
+            color: #d35400;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .rewards-list {
+            display: grid;
+            gap: 12px;
+        }
+        .reward-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+        .reward-item:hover {
+            transform: translateX(5px);
+        }
+        .reward-rank {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 1.1rem;
+            min-width: 120px;
+        }
+        .reward-details {
+            flex: 1;
+            padding: 0 15px;
+        }
+        .reward-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .reward-more {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        .reward-point {
+            font-weight: bold;
+            color: #27ae60;
+            font-size: 1.1rem;
+            white-space: nowrap;
+        }
         /* 用户投稿展示 */
         .my-submission-display {
             background: #fff3e0;
             border: 2px solid #ff9800;
+            <div id="activity3Rewards"></div>
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
@@ -194,6 +313,7 @@
         <div class="activity-section" id="activity1">
             <h2>📝 活动一：五周年关键词</h2>
             <p>用一个关键词定义摸鱼派的这五年！发表文章，标题为您的关键词，内容为关键词介绍。</p>
+            <div id="activity1Rewards"></div>
             <div id="activity1Submission" style="display: none;"></div>
             <div id="activity1Form" style="display: none;">
                 <div class="form-group">
@@ -217,6 +337,7 @@
         <div class="activity-section" id="activity2">
             <h2>🎨 活动二：2025流行色</h2>
             <p>为"2025徽章"设计您心目中的流行配色方案！</p>
+            <div id="activity2Rewards"></div>
             <div id="activity2Submission" style="display: none;"></div>
             <div id="activity2Form" style="display: none;">
                 <div class="form-group">
@@ -253,6 +374,7 @@
         <div class="activity-section" id="activity3">
             <h2>🏆 活动三：五周岁徽章设计</h2>
             <p>设计"摸鱼派5岁啦"专属徽章！除了名称固定外，其他元素都可以自由定制。</p>
+            <div id="activity3Rewards"></div>
             <div id="activity3Submission" style="display: none;"></div>
             <div id="activity3Form" style="display: none;">
                 <div class="form-group">
@@ -374,6 +496,7 @@
         // 初始化
         async function init() {
             await checkLogin();
+            await loadActivitiesRewards(); // 加载活动奖励信息
             if (isLoggedIn) {
                 await loadUserSubmissions();
                 await loadUserVotes();
@@ -411,6 +534,84 @@
                 document.getElementById('loginPrompt').style.display = 'block';
             }
         }
+
+        // 加载活动奖励信息
+        async function loadActivitiesRewards() {
+            try {
+                // 并行查询三个子活动的奖励信息
+                const [keywordRewards, badge2025Rewards, badge5yearRewards] = await Promise.all([
+                    fetch(`/api/activities/${ACTIVITY_IDS.keyword}/rewards`).then(res => res.ok ? res.json() : null),
+                    fetch(`/api/activities/${ACTIVITY_IDS.badge2025}/rewards`).then(res => res.ok ? res.json() : null),
+                    fetch(`/api/activities/${ACTIVITY_IDS.badge5year}/rewards`).then(res => res.ok ? res.json() : null)
+                ]);
+
+                // 展示奖励信息
+                if (keywordRewards && keywordRewards.rewards && keywordRewards.rewards.length > 0) {
+                    displayRewards('activity1Rewards', keywordRewards.rewards);
+                }
+                if (badge2025Rewards && badge2025Rewards.rewards && badge2025Rewards.rewards.length > 0) {
+                    displayRewards('activity2Rewards', badge2025Rewards.rewards);
+                }
+                if (badge5yearRewards && badge5yearRewards.rewards && badge5yearRewards.rewards.length > 0) {
+                    displayRewards('activity3Rewards', badge5yearRewards.rewards);
+                }
+            } catch (error) {
+                console.error('加载活动奖励信息失败:', error);
+            }
+        }
+
+        // 展示奖励信息
+        function displayRewards(containerId, rewards) {
+            const container = document.getElementById(containerId);
+            if (!container || !rewards || rewards.length === 0) {
+                return;
+            }
+
+            const rewardItems = rewards.map(reward => {
+                // 格式化名次范围
+                let rankText = '';
+                if (reward.min && reward.max) {
+                    rankText = `第 ${reward.min} - ${reward.max} 名`;
+                } else if (reward.min && !reward.max) {
+                    rankText = `第 ${reward.min} 名及以后`;
+                } else if (!reward.min && reward.max) {
+                    rankText = `第 1 - ${reward.max} 名`;
+                } else {
+                    rankText = '所有参与者';
+                }
+
+                // 构建奖励内容：先积分，后额外奖励
+                let rewardContent = '';
+                if (reward.point > 0) {
+                    rewardContent += `<div class="reward-point">🎁 ${reward.point} 积分</div>`;
+                }
+                if (reward.more) {
+                    rewardContent += `<div class="reward-point" style="font-size: 0.95rem; color: #e67e22;">+ ${escapeHtml(reward.more)}</div>`;
+                }
+
+                return `
+                    <div class="reward-item">
+                        <div class="reward-rank">🏅 ${rankText}</div>
+                        <div class="reward-details">
+                            ${reward.name ? `<div class="reward-name">${escapeHtml(reward.name)}</div>` : ''}
+                        </div>
+                        <div style="text-align: right;">
+                            ${rewardContent}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="rewards-section">
+                    <h3>🎁 活动奖励</h3>
+                    <div class="rewards-list">
+                        ${rewardItems}
+                    </div>
+                </div>
+            `;
+        }
+
 
         // 加载用户投稿信息
         async function loadUserSubmissions() {

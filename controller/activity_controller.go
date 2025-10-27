@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bless-activity/model"
+	"log/slog"
 	"net/http"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -25,6 +26,7 @@ func NewActivityController(event *core.ServeEvent) *ActivityController {
 
 func (controller *ActivityController) registerRoutes() {
 	controller.event.Router.GET("/api/activities", controller.GetActivities)
+	controller.event.Router.GET("/api/activities/{id}/rewards", controller.GetActivityRewards)
 }
 
 func (controller *ActivityController) GetActivities(e *core.RequestEvent) error {
@@ -42,15 +44,24 @@ func (controller *ActivityController) GetActivities(e *core.RequestEvent) error 
 	}
 
 	// 准备返回数据
+	type RewardItem struct {
+		Name  string `json:"name"`
+		Min   int    `json:"min"`
+		Max   int    `json:"max"`
+		Point int    `json:"point"`
+		More  string `json:"more"`
+	}
+
 	type ActivityResponse struct {
-		ID          string `json:"id"`
-		Name        string `json:"name"`
-		Slug        string `json:"slug"`
-		ArticleUrl  string `json:"articleUrl"`
-		ExternalUrl string `json:"externalUrl"`
-		Desc        string `json:"desc"`
-		Start       string `json:"start"`
-		End         string `json:"end"`
+		ID          string       `json:"id"`
+		Name        string       `json:"name"`
+		Slug        string       `json:"slug"`
+		ArticleUrl  string       `json:"articleUrl"`
+		ExternalUrl string       `json:"externalUrl"`
+		Desc        string       `json:"desc"`
+		Start       string       `json:"start"`
+		End         string       `json:"end"`
+		Rewards     []RewardItem `json:"rewards,omitempty"`
 	}
 
 	activityList := make([]ActivityResponse, 0, len(activities))
@@ -58,7 +69,7 @@ func (controller *ActivityController) GetActivities(e *core.RequestEvent) error 
 	for _, record := range activities {
 		activity := model.NewActivity(record)
 
-		activityList = append(activityList, ActivityResponse{
+		activityResp := ActivityResponse{
 			ID:          activity.ProxyRecord().Id,
 			Name:        activity.Name(),
 			Slug:        activity.Slug(),
@@ -67,10 +78,102 @@ func (controller *ActivityController) GetActivities(e *core.RequestEvent) error 
 			Desc:        activity.Desc(),
 			Start:       activity.Start().String(),
 			End:         activity.End().String(),
-		})
+		}
+
+		// 查询活动关联的奖励信息
+		rewardGroupId := activity.RewardGroupId()
+		slog.Info("活动信息", slog.String("activity", activity.Name()), slog.String("rewardGroupId", rewardGroupId))
+		if rewardGroupId != "" {
+			// 根据 rewardGroupId 查询 rewards 表
+			rewards, err := controller.app.FindRecordsByFilter(
+				model.DbNameRewards,
+				model.RewardsFieldRewardGroupId+" = {:rewardGroupId}",
+				model.RewardsFieldMin, // 按最小名次排序
+				0,
+				0,
+				map[string]any{"rewardGroupId": rewardGroupId},
+			)
+
+			slog.Info("奖励内容 ", slog.String("activity", activity.Name()), slog.Any("err", err), slog.Int("count", len(rewards)))
+			if err == nil && len(rewards) > 0 {
+				rewardItems := make([]RewardItem, 0, len(rewards))
+				for _, rewardRecord := range rewards {
+					reward := model.NewReward(rewardRecord)
+					rewardItems = append(rewardItems, RewardItem{
+						Name:  reward.Name(),
+						Min:   reward.Min(),
+						Max:   reward.Max(),
+						Point: reward.Point(),
+						More:  reward.More(),
+					})
+				}
+				activityResp.Rewards = rewardItems
+			}
+		}
+
+		activityList = append(activityList, activityResp)
 	}
 
 	return e.JSON(http.StatusOK, map[string]interface{}{
 		"items": activityList,
+	})
+}
+
+// GetActivityRewards 获取指定活动的奖励信息
+func (controller *ActivityController) GetActivityRewards(e *core.RequestEvent) error {
+	activityId := e.Request.PathValue("id")
+
+	if activityId == "" {
+		return e.BadRequestError("Activity ID is required", nil)
+	}
+
+	// 查询活动信息
+	activity, err := controller.app.FindRecordById(model.DbNameActivities, activityId)
+	if err != nil {
+		return e.NotFoundError("Activity not found", err)
+	}
+
+	activityModel := model.NewActivity(activity)
+	rewardGroupId := activityModel.RewardGroupId()
+
+	type RewardItem struct {
+		Name  string `json:"name"`
+		Min   int    `json:"min"`
+		Max   int    `json:"max"`
+		Point int    `json:"point"`
+		More  string `json:"more"`
+	}
+
+	var rewardItems []RewardItem
+
+	if rewardGroupId != "" {
+		// 根据 rewardGroupId 查询 rewards 表
+		rewards, err := controller.app.FindRecordsByFilter(
+			model.DbNameRewards,
+			model.RewardsFieldRewardGroupId+" = {:rewardGroupId}",
+			model.RewardsFieldMin, // 按最小名次排序
+			0,
+			0,
+			map[string]any{"rewardGroupId": rewardGroupId},
+		)
+
+		if err == nil && len(rewards) > 0 {
+			rewardItems = make([]RewardItem, 0, len(rewards))
+			for _, rewardRecord := range rewards {
+				reward := model.NewReward(rewardRecord)
+				rewardItems = append(rewardItems, RewardItem{
+					Name:  reward.Name(),
+					Min:   reward.Min(),
+					Max:   reward.Max(),
+					Point: reward.Point(),
+					More:  reward.More(),
+				})
+			}
+		}
+	}
+
+	return e.JSON(http.StatusOK, map[string]interface{}{
+		"activityId": activityId,
+		"rewards":    rewardItems,
 	})
 }
