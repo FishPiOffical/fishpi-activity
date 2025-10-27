@@ -1190,7 +1190,9 @@
             const rewardItems = sortedRewards.map((reward, index) => {
                 // 格式化名次范围
                 let rankText = '';
-                if (reward.min && reward.max) {
+                if (reward.min === reward.max) {
+                    rankText = `第 ${reward.min} 名`;
+                } else if (reward.min && reward.max) {
                     rankText = `第 ${reward.min} - ${reward.max} 名`;
                 } else if (reward.min && !reward.max) {
                     rankText = `第 ${reward.min} 名及以后`;
