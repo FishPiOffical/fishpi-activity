@@ -27,6 +27,7 @@ func NewActivityController(event *core.ServeEvent) *ActivityController {
 func (controller *ActivityController) registerRoutes() {
 	controller.event.Router.GET("/api/activities", controller.GetActivities)
 	controller.event.Router.GET("/api/activities/{id}", controller.GetActivityRewards)
+	controller.event.Router.GET("/api/yearly-histories", controller.GetYearlyHistories)
 }
 
 func (controller *ActivityController) GetActivities(e *core.RequestEvent) error {
@@ -177,5 +178,107 @@ func (controller *ActivityController) GetActivityRewards(e *core.RequestEvent) e
 		"name":       activityModel.Name(),
 		"desc":       activityModel.Desc(),
 		"rewards":    rewardItems,
+	})
+}
+
+// GetYearlyHistories 获取历年数据
+func (controller *ActivityController) GetYearlyHistories(e *core.RequestEvent) error {
+	// 查询所有历年数据，按年份倒序排列
+	histories, err := controller.app.FindRecordsByFilter(
+		model.DbNameYearlyHistories,
+		"",
+		"-"+model.YearlyHistoriesFieldYear, // 按年份倒序
+		0,
+		0,
+	)
+
+	if err != nil {
+		return e.InternalServerError("Failed to load yearly histories", err)
+	}
+
+	type ShieldInfo struct {
+		Text      string `json:"text"`
+		Url       string `json:"url,omitempty"`
+		Backcolor string `json:"backcolor"`
+		Fontcolor string `json:"fontcolor"`
+		Ver       string `json:"ver,omitempty"`
+		Scale     string `json:"scale,omitempty"`
+		Size      string `json:"size,omitempty"`
+		Border    string `json:"border,omitempty"`
+		Barlen    string `json:"barlen,omitempty"`
+		Fontsize  string `json:"fontsize,omitempty"`
+		Barradius string `json:"barradius,omitempty"`
+		Shadow    string `json:"shadow,omitempty"`
+		Anime     string `json:"anime,omitempty"`
+	}
+
+	type YearlyHistoryResponse struct {
+		Year          int         `json:"year"`
+		Keyword       string      `json:"keyword"`
+		ArticleUrl    string      `json:"articleUrl"`
+		ArticleShield *ShieldInfo `json:"articleShield,omitempty"`
+		AgeShield     *ShieldInfo `json:"ageShield,omitempty"`
+	}
+
+	historyList := make([]YearlyHistoryResponse, 0, len(histories))
+
+	for _, record := range histories {
+		history := model.NewYearlyHistory(record)
+
+		response := YearlyHistoryResponse{
+			Year:       history.Year(),
+			Keyword:    history.Keyword(),
+			ArticleUrl: history.ArticleUrl(),
+		}
+
+		// 查询流行色徽章信息
+		if articleShieldId := history.ArticleShieldId(); articleShieldId != "" {
+			if shieldRecord, err := controller.app.FindRecordById(model.DbNameShields, articleShieldId); err == nil {
+				shield := model.NewShield(shieldRecord)
+				response.ArticleShield = &ShieldInfo{
+					Text:      shield.Text(),
+					Url:       shield.Url(),
+					Backcolor: shield.Backcolor(),
+					Fontcolor: shield.Fontcolor(),
+					Ver:       shield.Ver(),
+					Scale:     shield.Scale(),
+					Size:      shield.Size(),
+					Border:    shield.Border(),
+					Barlen:    shield.BarLen(),
+					Fontsize:  shield.Fontsize(),
+					Barradius: shield.BarRadius(),
+					Shadow:    shield.Shadow(),
+					Anime:     shield.Anime(),
+				}
+			}
+		}
+
+		// 查询周岁徽章信息
+		if ageShieldId := history.AgeShieldId(); ageShieldId != "" {
+			if shieldRecord, err := controller.app.FindRecordById(model.DbNameShields, ageShieldId); err == nil {
+				shield := model.NewShield(shieldRecord)
+				response.AgeShield = &ShieldInfo{
+					Text:      shield.Text(),
+					Url:       shield.Url(),
+					Backcolor: shield.Backcolor(),
+					Fontcolor: shield.Fontcolor(),
+					Ver:       shield.Ver(),
+					Scale:     shield.Scale(),
+					Size:      shield.Size(),
+					Border:    shield.Border(),
+					Barlen:    shield.BarLen(),
+					Fontsize:  shield.Fontsize(),
+					Barradius: shield.BarRadius(),
+					Shadow:    shield.Shadow(),
+					Anime:     shield.Anime(),
+				}
+			}
+		}
+
+		historyList = append(historyList, response)
+	}
+
+	return e.JSON(http.StatusOK, map[string]interface{}{
+		"items": historyList,
 	})
 }
