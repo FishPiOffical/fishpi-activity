@@ -667,7 +667,7 @@
         </header>
         <div id="loginPrompt" class="login-prompt" style="display: none;">
             <p>💡 请先登录后参与活动设计和投票，未登录用户可以查看投票结果</p>
-            <a href="/fishpi/login" class="btn">立即登录</a>
+            <a href="#" onclick="redirectToLogin(); return false;" class="btn">立即登录</a>
         </div>
         <!-- 活动一：五周年关键词 -->
         <div class="activity-section" id="activity1">
@@ -953,6 +953,23 @@
         let userVotes = {}; // 记录用户的投票 {activityId: {voteId, toUserId}}
         let voteQuotas = {}; // 记录投票配额 {activityId: {total, used, remaining}}
 
+        // 重定向到登录页面，带上当前页面URL
+        function redirectToLogin() {
+            const currentUrl = window.location.href;
+            window.location.href = `/fishpi/login?redirect=${encodeURIComponent(currentUrl)}`;
+        }
+
+        // 检查登录状态，未登录则提示并跳转
+        function requireLogin(message) {
+            if (!isLoggedIn) {
+                if (confirm(message || '请先登录后再进行此操作，是否前往登录？')) {
+                    redirectToLogin();
+                }
+                return false;
+            }
+            return true;
+        }
+
         // 初始化
         async function init() {
             await checkLogin();
@@ -986,7 +1003,7 @@
                 } else {
                     isLoggedIn = false;
                     document.getElementById('userDisplay').innerHTML = `
-                        <a href="/fishpi/login">登录</a>
+                        <a href="#" onclick="redirectToLogin(); return false;">登录</a>
                     `;
                     document.getElementById('loginPrompt').style.display = 'block';
                 }
@@ -994,7 +1011,7 @@
                 console.error('检查登录状态失败:', error);
                 isLoggedIn = false;
                 document.getElementById('userDisplay').innerHTML = `
-                    <a href="/fishpi/login">登录</a>
+                    <a href="#" onclick="redirectToLogin(); return false;">登录</a>
                 `;
                 document.getElementById('loginPrompt').style.display = 'block';
             }
@@ -1648,8 +1665,7 @@
 
         // 提交关键词
         async function submitKeyword() {
-            if (!isLoggedIn) {
-                alert('请先登录');
+            if (!requireLogin('请先登录后再提交关键词')) {
                 return;
             }
 
@@ -1697,8 +1713,7 @@
 
         // 提交2025徽章配色
         async function submitBadge2025() {
-            if (!isLoggedIn) {
-                alert('请先登录');
+            if (!requireLogin('请先登录后再提交配色方案')) {
                 return;
             }
 
@@ -1777,8 +1792,7 @@
 
         // 提交五周岁徽章设计
         async function submitBadge5Year() {
-            if (!isLoggedIn) {
-                alert('请先登录');
+            if (!requireLogin('请先登录后再提交徽章设计')) {
                 return;
             }
 
@@ -2050,8 +2064,7 @@
 
         // 投票
         async function voteFor(activityId, targetUserId) {
-            if (!isLoggedIn) {
-                alert('请先登录后再投票');
+            if (!requireLogin('请先登录后再投票')) {
                 return;
             }
 
@@ -2093,8 +2106,7 @@
 
         // 取消投票
         async function cancelVote(activityId) {
-            if (!isLoggedIn) {
-                alert('请先登录');
+            if (!requireLogin('请先登录后再取消投票')) {
                 return;
             }
 
@@ -2406,8 +2418,7 @@
 
         // 更新关键词
         async function updateKeyword(articleId) {
-            if (!isLoggedIn) {
-                alert('请先登录');
+            if (!requireLogin('请先登录后再更新关键词')) {
                 return;
             }
 
@@ -2455,8 +2466,7 @@
 
         // 更新2025徽章配色
         async function updateBadge2025(articleId) {
-            if (!isLoggedIn) {
-                alert('请先登录');
+            if (!requireLogin('请先登录后再更新配色方案')) {
                 return;
             }
 
@@ -2530,8 +2540,7 @@
 
         // 更新五周岁徽章设计
         async function updateBadge5Year(articleId) {
-            if (!isLoggedIn) {
-                alert('请先登录');
+            if (!requireLogin('请先登录后再更新徽章设计')) {
                 return;
             }
 

@@ -64,7 +64,23 @@ func (controller *FishPiController) makeActionLogger(action string) *slog.Logger
 func (controller *FishPiController) Login(event *core.RequestEvent) error {
 
 	appUrl := event.App.Settings().Meta.AppURL
+
+	// 获取原始页面URL（redirect 或 next 参数）
+	redirectUrl := event.Request.URL.Query().Get("redirect")
+	if redirectUrl == "" {
+		redirectUrl = event.Request.URL.Query().Get("next")
+	}
+	if redirectUrl == "" {
+		redirectUrl = event.Request.Header.Get("Referer")
+	}
+
+	// 将redirect参数添加到callback URL中
 	callbackUrl := fmt.Sprintf("%s/fishpi/callback", appUrl)
+	if redirectUrl != "" && redirectUrl != "/" && redirectUrl != appUrl && redirectUrl != appUrl+"/" {
+		callbackParams := url.Values{}
+		callbackParams.Set("redirect", redirectUrl)
+		callbackUrl = fmt.Sprintf("%s?%s", callbackUrl, callbackParams.Encode())
+	}
 
 	query := url.Values{}
 	query.Set("openid.ns", "http://specs.openid.net/auth/2.0")
@@ -138,6 +154,13 @@ func (controller *FishPiController) CallbackVerify(event *core.RequestEvent) err
 		event.Set(ctxFishpiLoginUser, user)
 		event.Set(ctxFishpiUserInfo, result.Data)
 		event.Set(ctxFishpiNext, "login")
+
+		// 保存redirect参数
+		redirectUrl := event.Request.URL.Query().Get("redirect")
+		if redirectUrl != "" {
+			event.Set("redirect_url", redirectUrl)
+		}
+
 		return event.Next()
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		logger.Error("查询用户信息失败", slog.Any("err", err))
@@ -147,6 +170,12 @@ func (controller *FishPiController) CallbackVerify(event *core.RequestEvent) err
 	event.Set(ctxFishpiOpenId, openid)
 	event.Set(ctxFishpiUserInfo, result.Data)
 	event.Set(ctxFishpiNext, "register")
+
+	// 保存redirect参数
+	redirectUrl := event.Request.URL.Query().Get("redirect")
+	if redirectUrl != "" {
+		event.Set("redirect_url", redirectUrl)
+	}
 
 	return event.Next()
 }
@@ -217,7 +246,16 @@ func (controller *FishPiController) login(event *core.RequestEvent) error {
 		SameSite: http.SameSiteNoneMode,
 	}
 	event.SetCookie(cookie)
-	return event.Redirect(http.StatusFound, "/?from=login")
+
+	// 获取重定向URL
+	redirectUrl := "/"
+	if redirect := event.Get("redirect_url"); redirect != nil {
+		if redirectStr, ok := redirect.(string); ok && redirectStr != "" {
+			redirectUrl = redirectStr
+		}
+	}
+
+	return event.Redirect(http.StatusFound, redirectUrl)
 }
 
 func (controller *FishPiController) register(event *core.RequestEvent) error {
@@ -263,5 +301,13 @@ func (controller *FishPiController) register(event *core.RequestEvent) error {
 	}
 	event.SetCookie(cookie)
 
-	return event.Redirect(http.StatusFound, "/?from=register")
+	// 获取重定向URL
+	redirectUrl := "/"
+	if redirect := event.Get("redirect_url"); redirect != nil {
+		if redirectStr, ok := redirect.(string); ok && redirectStr != "" {
+			redirectUrl = redirectStr
+		}
+	}
+
+	return event.Redirect(http.StatusFound, redirectUrl)
 }
