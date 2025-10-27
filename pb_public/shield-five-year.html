@@ -23,7 +23,22 @@
         header h1 { font-size: 2.5rem; color: #333; margin-bottom: 10px; }
         header p { color: #666; font-size: 1.1rem; }
         /* 用户信息 */
-        .user-info { text-align: right; margin-bottom: 20px; color: white; }
+        .user-info {
+            text-align: right;
+            margin-bottom: 20px;
+            color: white;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-info .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid white;
+            object-fit: cover;
+        }
         .user-info a {
             color: white; text-decoration: none; background: rgba(255,255,255,0.2);
             padding: 8px 16px; border-radius: 20px; margin-left: 10px; transition: background 0.3s;
@@ -116,6 +131,8 @@
         .btn { background: #667eea; color: white; border: none; padding: 12px 30px; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: background 0.3s; margin-right: 10px; }
         .btn:hover { background: #5568d3; }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-cancel { background: #6c757d; }
+        .btn-cancel:hover { background: #5a6268; }
         /* 投票区块 */
         .vote-section { margin-top: 30px; padding-top: 30px; border-top: 2px solid #eee; }
         .vote-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
@@ -485,6 +502,7 @@
                     <div class="error-message" id="keywordDescError">请输入关键词介绍</div>
                 </div>
                 <button class="btn" onclick="submitKeyword()">提交关键词</button>
+                <button class="btn btn-cancel" onclick="cancelEdit('keyword')" style="display: none;" id="cancelKeywordBtn">取消编辑</button>
             </div>
             <div class="vote-section">
                 <h3>投票与查看</h3>
@@ -522,6 +540,7 @@
                     <img id="badge2025Preview" src="" alt="徽章预览">
                 </div>
                 <button class="btn" onclick="submitBadge2025()">提交配色方案</button>
+                <button class="btn btn-cancel" onclick="cancelEdit('badge2025')" style="display: none;" id="cancelBadge2025Btn">取消编辑</button>
             </div>
             <div class="vote-section">
                 <h3>投票与查看</h3>
@@ -616,6 +635,7 @@
                     <img id="badge5yPreview" src="" alt="徽章预览">
                 </div>
                 <button class="btn" onclick="submitBadge5Year()">提交设计方案</button>
+                <button class="btn btn-cancel" onclick="cancelEdit('badge5year')" style="display: none;" id="cancelBadge5yearBtn">取消编辑</button>
             </div>
             <div class="vote-section">
                 <h3>投票与查看</h3>
@@ -693,7 +713,11 @@
                 if (response.ok) {
                     currentUser = await response.json();
                     isLoggedIn = true;
+                    const avatarHtml = currentUser.avatar
+                        ? `<img src="${escapeHtml(currentUser.avatar)}" alt="avatar" class="user-avatar" onerror="this.style.display='none'">`
+                        : '';
                     document.getElementById('userDisplay').innerHTML = `
+                        ${avatarHtml}
                         <span>欢迎，${escapeHtml(currentUser.nickname || currentUser.name)}</span>
                         <a href="/user/logout">退出登录</a>
                     `;
@@ -1914,8 +1938,10 @@
                 document.getElementById('keyword').value = submission.title || '';
                 document.getElementById('keywordDesc').value = submission.content || '';
                 document.getElementById('activity1Form').style.display = 'block';
+                document.getElementById('activity1Submission').style.display = 'none';
                 document.querySelector('#activity1Form .btn').textContent = '更新关键词';
                 document.querySelector('#activity1Form .btn').onclick = () => updateSubmission('keyword', articleId);
+                document.getElementById('cancelKeywordBtn').style.display = 'inline-block';
                 document.getElementById('activity1Form').scrollIntoView({ behavior: 'smooth' });
             } else if (activityKey === 'badge2025') {
                 document.getElementById('badge2025Title').value = submission.title || '';
@@ -1926,8 +1952,10 @@
                 }
                 updateBadgePreview('2025');
                 document.getElementById('activity2Form').style.display = 'block';
+                document.getElementById('activity2Submission').style.display = 'none';
                 document.querySelector('#activity2Form .btn').textContent = '更新配色方案';
                 document.querySelector('#activity2Form .btn').onclick = () => updateSubmission('badge2025', articleId);
+                document.getElementById('cancelBadge2025Btn').style.display = 'inline-block';
                 document.getElementById('activity2Form').scrollIntoView({ behavior: 'smooth' });
             } else if (activityKey === 'badge5year') {
                 document.getElementById('badge5yTitle').value = submission.title || '';
@@ -1949,9 +1977,77 @@
                 }
                 updateBadgePreview('5year');
                 document.getElementById('activity3Form').style.display = 'block';
+                document.getElementById('activity3Submission').style.display = 'none';
                 document.querySelector('#activity3Form .btn').textContent = '更新设计方案';
                 document.querySelector('#activity3Form .btn').onclick = () => updateSubmission('badge5year', articleId);
+                document.getElementById('cancelBadge5yearBtn').style.display = 'inline-block';
                 document.getElementById('activity3Form').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // 取消编辑
+        function cancelEdit(activityKey) {
+            if (activityKey === 'keyword') {
+                // 重置表单
+                document.getElementById('keyword').value = '';
+                document.getElementById('keywordDesc').value = '';
+                // 清除错误状态
+                document.getElementById('keyword').classList.remove('error');
+                document.getElementById('keywordDesc').classList.remove('error');
+                document.getElementById('keywordError').classList.remove('show');
+                document.getElementById('keywordDescError').classList.remove('show');
+                // 恢复按钮状态
+                document.querySelector('#activity1Form .btn').textContent = '提交关键词';
+                document.querySelector('#activity1Form .btn').onclick = submitKeyword;
+                document.getElementById('cancelKeywordBtn').style.display = 'none';
+                // 显示投稿内容，隐藏表单
+                showForms();
+            } else if (activityKey === 'badge2025') {
+                // 重置表单
+                document.getElementById('badge2025Title').value = '';
+                document.getElementById('badge2025Note').value = '';
+                document.getElementById('badge2025Back').value = '#db5a6b';
+                document.getElementById('badge2025Font').value = '#ffffff';
+                // 清除错误状态
+                document.getElementById('badge2025Title').classList.remove('error');
+                document.getElementById('badge2025TitleError').classList.remove('show');
+                // 恢复按钮状态
+                document.querySelector('#activity2Form .btn').textContent = '提交配色方案';
+                document.querySelector('#activity2Form .btn').onclick = submitBadge2025;
+                document.getElementById('cancelBadge2025Btn').style.display = 'none';
+                // 更新预览
+                updateBadgePreview('2025');
+                // 显示投稿内容，隐藏表单
+                showForms();
+            } else if (activityKey === 'badge5year') {
+                // 重置表单
+                document.getElementById('badge5yTitle').value = '';
+                document.getElementById('badge5yNote').value = '';
+                document.getElementById('badge5yImageUpload').value = '';
+                uploadedImageFile = null;
+                document.getElementById('badge5yUrl').value = '';
+                document.getElementById('badge5yUrl').placeholder = '默认使用您的头像';
+                document.getElementById('badge5yBack').value = '#db5a6b';
+                document.getElementById('badge5yFont').value = '#ffffff';
+                // 重置高级选项
+                document.getElementById('badge5ySize').value = '';
+                document.getElementById('badge5yBorder').value = '';
+                document.getElementById('badge5yBarlen').value = '';
+                document.getElementById('badge5yFontsize').value = '';
+                document.getElementById('badge5yBarradius').value = '';
+                document.getElementById('badge5yShadow').value = '';
+                document.getElementById('badge5yAnime').value = '';
+                // 清除错误状态
+                document.getElementById('badge5yTitle').classList.remove('error');
+                document.getElementById('badge5yTitleError').classList.remove('show');
+                // 恢复按钮状态
+                document.querySelector('#activity3Form .btn').textContent = '提交设计方案';
+                document.querySelector('#activity3Form .btn').onclick = submitBadge5Year;
+                document.getElementById('cancelBadge5yearBtn').style.display = 'none';
+                // 更新预览
+                updateBadgePreview('5year');
+                // 显示投稿内容，隐藏表单
+                showForms();
             }
         }
 
@@ -2001,6 +2097,7 @@
                     document.getElementById('keywordDesc').value = '';
                     document.querySelector('#activity1Form .btn').textContent = '提交关键词';
                     document.querySelector('#activity1Form .btn').onclick = submitKeyword;
+                    document.getElementById('cancelKeywordBtn').style.display = 'none';
                     await loadUserSubmissions();
                     showForms();
                     loadArticles('keyword', 'activity1Votes');
@@ -2075,6 +2172,7 @@
                     document.getElementById('badge2025Note').value = '';
                     document.querySelector('#activity2Form .btn').textContent = '提交配色方案';
                     document.querySelector('#activity2Form .btn').onclick = submitBadge2025;
+                    document.getElementById('cancelBadge2025Btn').style.display = 'none';
                     await loadUserSubmissions();
                     showForms();
                     loadArticles('badge2025', 'activity2Votes');
@@ -2177,6 +2275,7 @@
                     uploadedImageFile = null;
                     document.querySelector('#activity3Form .btn').textContent = '提交设计方案';
                     document.querySelector('#activity3Form .btn').onclick = submitBadge5Year;
+                    document.getElementById('cancelBadge5yearBtn').style.display = 'none';
                     await loadUserSubmissions();
                     showForms();
                     loadArticles('badge5year', 'activity3Votes');
