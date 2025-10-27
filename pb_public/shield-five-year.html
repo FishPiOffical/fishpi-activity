@@ -232,8 +232,8 @@
             flex-direction: column;
         }
         .vote-item:hover { border-color: #667eea; box-shadow: 0 5px 15px rgba(102,126,234,0.2); }
-        .vote-item.voted { border-color: #4CAF50; background: #f1f8f4; }
-        .vote-item.my-submission { border-color: #ff9800; background: #fff3e0; }
+        .vote-item.voted { border-color: #4CAF50; }
+        .vote-item.my-submission { border-color: #ff9800; }
         .vote-item-header {
             display: flex;
             align-items: center;
@@ -307,6 +307,40 @@
         .sort-btn:hover { background: #e9ecef; }
         .sort-btn.active { background: #667eea; color: white; border-color: #667eea; }
         .vote-info { background: #e3f2fd; padding: 10px 15px; border-radius: 6px; color: #1976d2; font-weight: 600; }
+        .vote-quota-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+        }
+        .vote-quota-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .vote-quota-label {
+            color: #1565c0;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .vote-quota-value {
+            color: #0d47a1;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .vote-quota-remaining {
+            color: #2e7d32;
+        }
+        .vote-quota-used {
+            color: #f57c00;
+        }
+        .vote-quota-separator {
+            color: #90caf9;
+            font-weight: 300;
+        }
         /* 投票详情模态框 */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
         .modal.show { display: flex; justify-content: center; align-items: center; }
@@ -403,10 +437,29 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .rewards-section h3:hover {
+            opacity: 0.8;
+        }
+        .rewards-toggle-icon {
+            margin-left: auto;
+            transition: transform 0.3s;
+            font-size: 1rem;
+        }
+        .rewards-toggle-icon.expanded {
+            transform: rotate(180deg);
         }
         .rewards-list {
             display: grid;
             gap: 12px;
+        }
+        .rewards-list.collapsed {
+            display: block;
+        }
+        .rewards-list.collapsed .reward-item:not(:first-child) {
+            display: none;
         }
         .reward-item {
             background: white;
@@ -1122,7 +1175,19 @@
                 return;
             }
 
-            const rewardItems = rewards.map(reward => {
+            // 按照奖励排序（最高的在前面）
+            const sortedRewards = [...rewards].sort((a, b) => {
+                // 优先比较 point
+                if (a.point !== b.point) {
+                    return b.point - a.point;
+                }
+                // 如果 point 相同，比较 min（名次越小越好）
+                const aMin = a.min || 1;
+                const bMin = b.min || 1;
+                return aMin - bMin;
+            });
+
+            const rewardItems = sortedRewards.map((reward, index) => {
                 // 格式化名次范围
                 let rankText = '';
                 if (reward.min && reward.max) {
@@ -1157,14 +1222,29 @@
                 `;
             }).join('');
 
+            const rewardsId = `rewards-${containerId}`;
             container.innerHTML = `
                 <div class="rewards-section">
-                    <h3>🎁 活动奖励</h3>
-                    <div class="rewards-list">
+                    <h3 onclick="toggleRewards('${rewardsId}')">
+                        🎁 活动奖励
+                        <span class="rewards-toggle-icon" id="${rewardsId}-icon">▼</span>
+                    </h3>
+                    <div class="rewards-list collapsed" id="${rewardsId}">
                         ${rewardItems}
                     </div>
                 </div>
             `;
+        }
+
+        // 切换奖励展开/收起
+        function toggleRewards(rewardsId) {
+            const rewardsList = document.getElementById(rewardsId);
+            const icon = document.getElementById(`${rewardsId}-icon`);
+
+            if (rewardsList && icon) {
+                rewardsList.classList.toggle('collapsed');
+                icon.classList.toggle('expanded');
+            }
         }
 
 
@@ -1885,7 +1965,19 @@
                             时间升序
                         </button>
                     </div>
-                    ${isLoggedIn ? `<div class="vote-info">可投票数: ${quota.remaining} / 已投票: ${quota.used}</div>` : ''}
+                    ${isLoggedIn ? `
+                    <div class="vote-quota-container">
+                        <div class="vote-quota-item">
+                            <span class="vote-quota-label">可投票：</span>
+                            <span class="vote-quota-value vote-quota-remaining">${quota.remaining}</span>
+                        </div>
+                        <span class="vote-quota-separator">|</span>
+                        <div class="vote-quota-item">
+                            <span class="vote-quota-label">已投票：</span>
+                            <span class="vote-quota-value vote-quota-used">${quota.used}</span>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             `;
 
