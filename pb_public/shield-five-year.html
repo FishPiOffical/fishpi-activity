@@ -13,8 +13,95 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            padding-top: 80px; /* 为固定导航栏留出空间 */
         }
         .container { max-width: 1200px; margin: 0 auto; }
+        /* 导航栏 */
+        .nav-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(102, 126, 234, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 999;
+            padding: 12px 20px;
+        }
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .nav-logo {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        /* 回到顶部按钮 */
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 998;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .back-to-top.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .back-to-top:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+        .back-to-top:active {
+            transform: translateY(-2px);
+        }
         /* 头部 */
         header {
             background: white; border-radius: 12px; padding: 30px; margin-bottom: 30px;
@@ -535,16 +622,51 @@
             background: #5568d3;
         }
         @media (max-width: 768px) {
+            body { padding-top: 120px; } /* 移动端导航栏可能换行，需要更多空间 */
             header h1 { font-size: 1.8rem; }
             .color-input-group { grid-template-columns: 1fr; }
             .vote-list { grid-template-columns: 1fr; }
             .vote-item-keyword { font-size: 1.3rem; }
             .vote-item { padding: 10px; }
             .my-submission-display .submission-title { font-size: 1.3rem; }
+            .nav-container { justify-content: center; }
+            .nav-logo { font-size: 1rem; }
+            .nav-links { gap: 8px; }
+            .nav-link {
+                font-size: 0.8rem;
+                padding: 5px 10px;
+            }
+            .back-to-top {
+                width: 45px;
+                height: 45px;
+                bottom: 20px;
+                right: 20px;
+                font-size: 1.3rem;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- 导航栏 -->
+    <nav class="nav-bar">
+        <div class="nav-container">
+            <a href="#" class="nav-logo" onclick="scrollToTop(); return false;">
+                🎉 摸鱼派五周年
+            </a>
+            <div class="nav-links">
+                <a href="#activity1" class="nav-link" data-section="activity1">📝 活动一</a>
+                <a href="#activity2" class="nav-link" data-section="activity2">🎨 活动二</a>
+                <a href="#activity3" class="nav-link" data-section="activity3">🏆 活动三</a>
+                <a href="#yearlyHistories" class="nav-link" data-section="yearlyHistories">📜 历年回顾</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 回到顶部按钮 -->
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()" title="回到顶部">
+        ↑
+    </button>
+
     <div class="container">
         <div class="user-info" id="userInfo">
             <span id="userDisplay">加载中...</span>
@@ -751,6 +873,83 @@
     </div>
 
     <script>
+        // ============ 导航和滚动功能 ============
+
+        // 回到顶部功能
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // 监听滚动事件，显示/隐藏回到顶部按钮
+        window.addEventListener('scroll', function() {
+            const backToTopBtn = document.getElementById('backToTop');
+            if (window.pageYOffset > 300) {
+                backToTopBtn.classList.add('show');
+            } else {
+                backToTopBtn.classList.remove('show');
+            }
+
+            // 高亮当前可视区域对应的导航链接
+            highlightActiveNavLink();
+        });
+
+        // 高亮当前区域的导航链接
+        function highlightActiveNavLink() {
+            const sections = ['activity1', 'activity2', 'activity3', 'yearlyHistories'];
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            let currentSection = '';
+            const scrollPosition = window.pageYOffset + 150; // 偏移量，考虑固定导航栏
+
+            // 找到当前在视口中的section
+            for (const sectionId of sections) {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    const sectionTop = section.offsetTop;
+                    const sectionBottom = sectionTop + section.offsetHeight;
+
+                    if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+                        currentSection = sectionId;
+                        break;
+                    }
+                }
+            }
+
+            // 更新导航链接的active状态
+            navLinks.forEach(link => {
+                const section = link.getAttribute('data-section');
+                if (section === currentSection) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+
+        // 平滑滚动到指定区域
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+
+                if (targetElement) {
+                    const navHeight = document.querySelector('.nav-bar').offsetHeight;
+                    const targetPosition = targetElement.offsetTop - navHeight - 20;
+
+                    window.scrollTo({
+                        top: targetPosition,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // ============ 原有代码 ============
+
         const ACTIVITY_IDS = {
             main: '9sftj1vraueq7r5',
             keyword: '3uxf93bj633hgea',
