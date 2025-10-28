@@ -166,6 +166,24 @@
         }
         header h1 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 10px; }
         header p { color: #555; font-size: 1.1rem; }
+        /* activityDesc 中的链接样式 */
+        #activityDesc a {
+            color: #ff6b8a;
+            text-decoration: none;
+            font-weight: 500;
+            background: rgba(255, 143, 171, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            border-bottom: 2px solid rgba(255, 107, 138, 0.3);
+        }
+        #activityDesc a:hover {
+            color: #fff;
+            background: #ff8fab;
+            border-bottom-color: #ff8fab;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(255, 143, 171, 0.3);
+        }
         .activity-time {
             margin-top: 15px;
             padding: 12px 20px;
@@ -246,8 +264,23 @@
         .activity-desc li { margin-bottom: 5px; }
         .activity-desc strong { font-weight: 600; }
         .activity-desc em { font-style: italic; }
-        .activity-desc a { color: #ff6b8a; text-decoration: underline; font-weight: 500; }
-        .activity-desc a:hover { color: #e85577; }
+        .activity-desc a {
+            color: #ff6b8a;
+            text-decoration: none;
+            font-weight: 500;
+            background: rgba(255, 143, 171, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            border-bottom: 2px solid rgba(255, 107, 138, 0.3);
+        }
+        .activity-desc a:hover {
+            color: #fff;
+            background: #ff8fab;
+            border-bottom-color: #ff8fab;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(255, 143, 171, 0.3);
+        }
         .activity-desc blockquote {
             border-left: 4px solid #ff8fab;
             padding-left: 15px;
