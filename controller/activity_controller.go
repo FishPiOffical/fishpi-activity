@@ -178,6 +178,8 @@ func (controller *ActivityController) GetActivityRewards(e *core.RequestEvent) e
 		"name":       activityModel.Name(),
 		"desc":       activityModel.Desc(),
 		"rewards":    rewardItems,
+		"start":      activityModel.Start(),
+		"end":        activityModel.End(),
 	})
 }
 

@@ -165,6 +165,24 @@
         }
         header h1 { font-size: 2.5rem; color: #333; margin-bottom: 10px; }
         header p { color: #666; font-size: 1.1rem; }
+        .activity-time {
+            margin-top: 15px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 8px;
+            display: inline-block;
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+        }
+        .time-label {
+            color: #1565c0;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        .time-value {
+            color: #0d47a1;
+            font-weight: 500;
+            font-size: 1rem;
+        }
         /* 登录提示 */
         .login-prompt {
             background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
@@ -725,6 +743,17 @@
                 font-size: 1rem;
                 padding: 10px 25px;
             }
+            .activity-time {
+                margin-top: 12px;
+                padding: 10px 15px;
+            }
+            .time-label, .time-value {
+                font-size: 0.9rem;
+                display: block;
+            }
+            .time-value {
+                margin-top: 5px;
+            }
         }
     </style>
 </head>
@@ -754,8 +783,12 @@
 
     <div class="container">
         <header>
-            <h1>🎉 摸鱼派五周年庆典</h1>
-            <p>感谢陪伴，让我们一起庆祝摸鱼派五周岁生日！</p>
+            <h1 id="activityTitle">🎉 摸鱼派五周年庆典</h1>
+            <p id="activityDesc">感谢陪伴，让我们一起庆祝摸鱼派五周岁生日！</p>
+            <div class="activity-time" id="activityTime" style="display: none;">
+                <span class="time-label">⏰ 活动时间：</span>
+                <span class="time-value" id="activityTimeValue">加载中...</span>
+            </div>
         </header>
         <div id="loginPrompt" class="login-prompt" style="display: none;">
             <p>💡 请先登录后参与活动设计和投票，未登录用户可以查看投票结果</p>
@@ -1065,6 +1098,7 @@
         // 初始化
         async function init() {
             await checkLogin();
+            await loadMainActivity(); // 加载主活动信息
             await loadActivitiesRewards(); // 加载活动奖励信息
             if (isLoggedIn) {
                 await loadUserSubmissions();
@@ -1113,6 +1147,82 @@
                 `;
                 // 显示登录提示
                 document.getElementById('loginPrompt').style.display = 'block';
+            }
+        }
+
+        // 加载主活动信息
+        async function loadMainActivity() {
+            try {
+                const response = await fetch(`/api/activities/${ACTIVITY_IDS.main}`);
+                if (response.ok) {
+                    const mainActivity = await response.json();
+
+                    // 更新活动标题
+                    if (mainActivity.name) {
+                        document.getElementById('activityTitle').textContent = mainActivity.name;
+                    }
+
+                    // 更新活动描述
+                    if (mainActivity.desc) {
+                        const descElement = document.getElementById('activityDesc');
+                        // 如果是HTML格式，使用innerHTML，否则使用textContent
+                        if (mainActivity.desc.includes('<')) {
+                            descElement.innerHTML = mainActivity.desc;
+                        } else {
+                            descElement.textContent = mainActivity.desc;
+                        }
+                    }
+
+                    // 更新活动时间
+                    if (mainActivity.start || mainActivity.end) {
+                        const timeElement = document.getElementById('activityTime');
+                        const timeValueElement = document.getElementById('activityTimeValue');
+
+                        let timeText = '';
+                        if (mainActivity.start && mainActivity.end) {
+                            const startDate = new Date(mainActivity.start).toLocaleString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            const endDate = new Date(mainActivity.end).toLocaleString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            timeText = `${startDate} 至 ${endDate}`;
+                        } else if (mainActivity.start) {
+                            const startDate = new Date(mainActivity.start).toLocaleString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            timeText = `${startDate} 开始`;
+                        } else if (mainActivity.end) {
+                            const endDate = new Date(mainActivity.end).toLocaleString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            timeText = `截止 ${endDate}`;
+                        }
+
+                        if (timeText) {
+                            timeValueElement.textContent = timeText;
+                            timeElement.style.display = 'inline-block';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('加载主活动信息失败:', error);
             }
         }
 
