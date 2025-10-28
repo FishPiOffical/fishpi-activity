@@ -22,9 +22,9 @@
             top: 0;
             left: 0;
             right: 0;
-            background: rgba(255, 182, 193, 0.95);
+            background: #ff9db3;
             backdrop-filter: blur(10px);
-            box-shadow: 0 2px 15px rgba(255, 182, 193, 0.2);
+            box-shadow: 0 2px 15px rgba(255, 157, 179, 0.35);
             z-index: 999;
             padding: 12px 20px;
         }
@@ -132,13 +132,13 @@
             right: 30px;
             width: 50px;
             height: 50px;
-            background: #ffb6c1;
+            background: #ff8fab;
             color: white;
             border: none;
             border-radius: 50%;
             font-size: 1.5rem;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(255, 182, 193, 0.4);
+            box-shadow: 0 4px 15px rgba(255, 143, 171, 0.5);
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s;
@@ -153,7 +153,8 @@
         }
         .back-to-top:hover {
             transform: translateY(-5px);
-            box-shadow: 0 6px 20px rgba(255, 182, 193, 0.5);
+            box-shadow: 0 6px 20px rgba(255, 143, 171, 0.6);
+            background: #ff7a9d;
         }
         .back-to-top:active {
             transform: translateY(-2px);
@@ -161,45 +162,46 @@
         /* 头部 */
         header {
             background: white; border-radius: 12px; padding: 30px; margin-bottom: 30px;
-            box-shadow: 0 2px 20px rgba(255, 182, 193, 0.15); text-align: center;
+            box-shadow: 0 4px 25px rgba(255, 143, 171, 0.2); text-align: center;
         }
-        header h1 { font-size: 2.5rem; color: #333; margin-bottom: 10px; }
-        header p { color: #666; font-size: 1.1rem; }
+        header h1 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 10px; }
+        header p { color: #555; font-size: 1.1rem; }
         .activity-time {
             margin-top: 15px;
             padding: 12px 20px;
-            background: rgba(255, 182, 193, 0.08);
+            background: rgba(255, 143, 171, 0.12);
             border-radius: 8px;
             display: inline-block;
-            box-shadow: 0 2px 8px rgba(255, 182, 193, 0.1);
+            box-shadow: 0 2px 8px rgba(255, 143, 171, 0.15);
+            border: 1px solid rgba(255, 143, 171, 0.2);
         }
         .time-label {
-            color: #ffb6c1;
+            color: #ff6b8a;
             font-weight: 600;
             font-size: 1rem;
         }
         .time-value {
-            color: #d896a0;
+            color: #e85577;
             font-weight: 500;
             font-size: 1rem;
         }
         /* 登录提示 */
         .login-prompt {
-            background: rgba(255, 182, 193, 0.08);
-            border: 2px solid #ffb6c1;
+            background: rgba(255, 143, 171, 0.12);
+            border: 2px solid #ff8fab;
             padding: 25px 30px;
             border-radius: 12px;
             margin-bottom: 25px;
             text-align: center;
-            box-shadow: 0 4px 20px rgba(255, 182, 193, 0.15);
+            box-shadow: 0 4px 20px rgba(255, 143, 171, 0.2);
             animation: pulse-border 2s ease-in-out infinite;
         }
         @keyframes pulse-border {
-            0%, 100% { border-color: #ffb6c1; }
-            50% { border-color: #ffccd5; }
+            0%, 100% { border-color: #ff8fab; }
+            50% { border-color: #ffb3c6; }
         }
         .login-prompt p {
-            color: #d896a0;
+            color: #d6446b;
             font-size: 1.15rem;
             font-weight: 700;
             margin: 0 0 15px 0;
@@ -207,22 +209,22 @@
         }
         .login-prompt-btn {
             display: inline-block;
-            background: #ffb6c1;
+            background: #ff8fab;
             color: white;
             padding: 12px 30px;
             border-radius: 25px;
             text-decoration: none;
             font-size: 1.1rem;
             font-weight: 700;
-            border: 2px solid #ffb6c1;
+            border: 2px solid #ff8fab;
             transition: all 0.3s;
-            box-shadow: 0 4px 12px rgba(255, 182, 193, 0.3);
+            box-shadow: 0 4px 12px rgba(255, 143, 171, 0.4);
         }
         .login-prompt-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(255, 182, 193, 0.4);
-            background: #ffccd5;
-            border-color: #ffccd5;
+            box-shadow: 0 6px 16px rgba(255, 143, 171, 0.5);
+            background: #ff7a9d;
+            border-color: #ff7a9d;
         }
         .login-prompt-btn:active {
             transform: translateY(0);
@@ -230,45 +232,48 @@
         /* 活动区块 */
         .activity-section {
             background: white; border-radius: 12px; padding: 30px; margin-bottom: 30px;
-            box-shadow: 0 2px 20px rgba(255, 182, 193, 0.15);
+            box-shadow: 0 4px 25px rgba(255, 143, 171, 0.2);
         }
         .activity-section h2 {
-            color: #333; font-size: 1.8rem; margin-bottom: 15px;
-            padding-bottom: 10px; border-bottom: 2px solid #ffb6c1;
+            color: #2c2c2c; font-size: 1.8rem; margin-bottom: 15px;
+            padding-bottom: 10px; border-bottom: 3px solid #ff8fab;
         }
-        .activity-section p { color: #666; line-height: 1.8; margin-bottom: 15px; }
+        .activity-section p { color: #555; line-height: 1.8; margin-bottom: 15px; }
         /* 活动描述（支持rich editor HTML格式）*/
-        .activity-desc { color: #666; line-height: 1.8; margin-bottom: 15px; }
+        .activity-desc { color: #555; line-height: 1.8; margin-bottom: 15px; }
         .activity-desc p { margin-bottom: 10px; }
         .activity-desc ul, .activity-desc ol { margin-left: 20px; margin-bottom: 10px; }
         .activity-desc li { margin-bottom: 5px; }
         .activity-desc strong { font-weight: 600; }
         .activity-desc em { font-style: italic; }
-        .activity-desc a { color: #ffb6c1; text-decoration: underline; }
-        .activity-desc a:hover { color: #d896a0; }
+        .activity-desc a { color: #ff6b8a; text-decoration: underline; font-weight: 500; }
+        .activity-desc a:hover { color: #e85577; }
         .activity-desc blockquote {
-            border-left: 4px solid #ffb6c1;
+            border-left: 4px solid #ff8fab;
             padding-left: 15px;
             margin: 10px 0;
             color: #555;
             font-style: italic;
+            background: rgba(255, 143, 171, 0.05);
         }
         .activity-desc code {
-            background: rgba(255, 182, 193, 0.1);
+            background: rgba(255, 143, 171, 0.15);
             padding: 2px 6px;
             border-radius: 3px;
             font-family: monospace;
+            color: #d6446b;
         }
         .activity-desc pre {
-            background: rgba(255, 182, 193, 0.1);
+            background: rgba(255, 143, 171, 0.15);
             padding: 10px;
             border-radius: 6px;
             overflow-x: auto;
             margin: 10px 0;
+            border: 1px solid rgba(255, 143, 171, 0.3);
         }
         /* 表单 */
         .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #2c2c2c; }
         .form-group label .required { color: #dc3545; margin-left: 4px; font-weight: bold; }
         .form-group input, .form-group textarea, .form-group select {
             width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;
@@ -283,7 +288,7 @@
         .form-group input[type="color"] { height: 50px; cursor: pointer; }
         .color-input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         /* 徽章预览 */
-        .shield-preview { margin: 20px 0; padding: 20px; background: rgba(255, 182, 193, 0.05); border-radius: 8px; text-align: center; }
+        .shield-preview { margin: 20px 0; padding: 20px; background: rgba(255, 143, 171, 0.08); border-radius: 8px; text-align: center; border: 1px solid rgba(255, 143, 171, 0.2); }
         .shield-preview img {
             max-width: 100%;
             height: auto;
@@ -300,14 +305,14 @@
             background: white; padding: 12px 15px; cursor: pointer; user-select: none;
             display: flex; justify-content: space-between; align-items: center; transition: background 0.3s;
         }
-        .collapsible-header:hover { background: rgba(255, 182, 193, 0.08); }
+        .collapsible-header:hover { background: rgba(255, 143, 171, 0.1); }
         .collapsible-header .toggle-icon { font-weight: bold; transition: transform 0.3s; }
         .collapsible-header.active .toggle-icon { transform: rotate(180deg); }
         .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
         .collapsible-content.active { max-height: 2000px; padding: 15px; }
         /* 按钮 */
-        .btn { background: #ffb6c1; color: white; border: none; padding: 12px 30px; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: background 0.3s; margin-right: 10px; }
-        .btn:hover { background: #ffccd5; }
+        .btn { background: #ff8fab; color: white; border: none; padding: 12px 30px; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: all 0.3s; margin-right: 10px; font-weight: 600; box-shadow: 0 2px 8px rgba(255, 143, 171, 0.3); }
+        .btn:hover { background: #ff7a9d; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255, 143, 171, 0.4); }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
         .btn-cancel { background: #6c757d; }
         .btn-cancel:hover { background: #5a6268; }
@@ -316,16 +321,16 @@
         .vote-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 20px; }
         .vote-item {
             background: white;
-            border: 2px solid #eee;
+            border: 2px solid #e8e8e8;
             border-radius: 8px;
             padding: 12px;
             transition: all 0.3s;
             display: flex;
             flex-direction: column;
         }
-        .vote-item:hover { border-color: #ffb6c1; box-shadow: 0 5px 15px rgba(255, 182, 193, 0.2); }
-        .vote-item.voted { border-color: #4CAF50; }
-        .vote-item.my-submission { border-color: #ff9800; }
+        .vote-item:hover { border-color: #ff8fab; box-shadow: 0 5px 15px rgba(255, 143, 171, 0.25); transform: translateY(-2px); }
+        .vote-item.voted { border-color: #4CAF50; box-shadow: 0 2px 10px rgba(76, 175, 80, 0.2); }
+        .vote-item.my-submission { border-color: #ff9800; box-shadow: 0 2px 10px rgba(255, 152, 0, 0.2); }
         .vote-item-header {
             display: flex;
             align-items: center;
@@ -342,14 +347,14 @@
         }
         .vote-item-name {
             font-weight: 500;
-            color: #666;
+            color: #555;
             font-size: 0.875rem;
             flex: 1;
         }
         .vote-item-keyword {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #333;
+            color: #2c2c2c;
             margin: 12px 0 15px 0;
             line-height: 1.3;
             word-break: break-word;
@@ -361,7 +366,7 @@
             flex-direction: column;
         }
         .vote-item-description {
-            color: #555;
+            color: #444;
             line-height: 1.6;
             font-size: 0.95rem;
             margin-bottom: 12px;
@@ -389,24 +394,25 @@
             padding-top: 10px;
             border-top: 1px solid rgba(0,0,0,0.06);
         }
-        .vote-count { color: #ffb6c1; font-weight: 600; cursor: pointer; text-decoration: underline; }
-        .vote-count:hover { color: #d896a0; }
+        .vote-count { color: #ff6b8a; font-weight: 600; cursor: pointer; text-decoration: underline; }
+        .vote-count:hover { color: #e85577; }
         .error { background: #ffebee; color: #c62828; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ef5350; }
         /* 排序和票数信息 */
         .sort-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
         .sort-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
-        .sort-btn { background: white; color: #333; border: 1px solid #ddd; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: all 0.3s; }
-        .sort-btn:hover { background: rgba(255, 182, 193, 0.08); }
-        .sort-btn.active { background: #ffb6c1; color: white; border-color: #ffb6c1; }
-        .vote-info { background: rgba(255, 182, 193, 0.1); padding: 10px 15px; border-radius: 6px; color: #d896a0; font-weight: 600; border: 1px solid #ffccd5; }
+        .sort-btn { background: white; color: #333; border: 1px solid #ddd; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: all 0.3s; font-weight: 500; }
+        .sort-btn:hover { background: rgba(255, 143, 171, 0.1); border-color: #ff8fab; }
+        .sort-btn.active { background: #ff8fab; color: white; border-color: #ff8fab; box-shadow: 0 2px 8px rgba(255, 143, 171, 0.3); }
+        .vote-info { background: rgba(255, 143, 171, 0.12); padding: 10px 15px; border-radius: 6px; color: #e85577; font-weight: 600; border: 1px solid #ffb3c6; }
         .vote-quota-container {
             display: flex;
             align-items: center;
             gap: 15px;
-            background: rgba(255, 182, 193, 0.08);
+            background: rgba(255, 143, 171, 0.12);
             padding: 12px 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(255, 182, 193, 0.1);
+            box-shadow: 0 2px 8px rgba(255, 143, 171, 0.15);
+            border: 1px solid rgba(255, 143, 171, 0.2);
         }
         .vote-quota-item {
             display: flex;
@@ -414,12 +420,12 @@
             gap: 6px;
         }
         .vote-quota-label {
-            color: #d896a0;
+            color: #e85577;
             font-size: 0.9rem;
             font-weight: 500;
         }
         .vote-quota-value {
-            color: #ffb6c1;
+            color: #ff6b8a;
             font-size: 1.1rem;
             font-weight: 700;
         }
@@ -430,7 +436,7 @@
             color: #f57c00;
         }
         .vote-quota-separator {
-            color: #ffccd5;
+            color: #ffb3c6;
             font-weight: 300;
         }
         /* 投票详情模态框 */
@@ -450,13 +456,14 @@
         .voter-name { color: #333; font-weight: 600; }
         .voter-time { color: #999; font-size: 0.75rem; margin-top: 2px; }
         .voter-comment {
-            background: rgba(255, 182, 193, 0.06);
+            background: rgba(255, 143, 171, 0.08);
             padding: 10px;
             border-radius: 6px;
-            color: #666;
+            color: #555;
             line-height: 1.6;
             margin-left: 40px;
             font-size: 0.9rem;
+            border: 1px solid rgba(255, 143, 171, 0.15);
         }
         /* 徽章预览弹窗 */
         .badge-preview-modal-content {
@@ -520,7 +527,7 @@
             border-radius: 8px;
             padding: 16px;
             margin: 20px 0;
-            border: 1px solid #ffccd5;
+            border: 2px solid #ffb3c6;
         }
         .rewards-section h3 {
             color: #495057;
@@ -534,7 +541,7 @@
             font-weight: 600;
         }
         .rewards-section h3:hover {
-            color: #ffb6c1;
+            color: #ff6b8a;
         }
         .rewards-toggle-icon {
             margin-left: auto;
@@ -567,12 +574,13 @@
             transition: all 0.2s;
         }
         .reward-item:hover {
-            border-color: #ffb6c1;
-            box-shadow: 0 2px 8px rgba(255, 182, 193, 0.15);
+            border-color: #ff8fab;
+            box-shadow: 0 2px 12px rgba(255, 143, 171, 0.2);
+            transform: translateX(5px);
         }
         .reward-rank {
             font-weight: 600;
-            color: #ffb6c1;
+            color: #ff6b8a;
             font-size: 0.95rem;
             min-width: 100px;
         }
@@ -648,29 +656,31 @@
             background: white;
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 2px 20px rgba(255, 182, 193, 0.15);
+            box-shadow: 0 4px 25px rgba(255, 143, 171, 0.2);
             transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid rgba(255, 143, 171, 0.15);
         }
         .history-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 4px 25px rgba(255, 182, 193, 0.25);
+            box-shadow: 0 6px 30px rgba(255, 143, 171, 0.3);
         }
         .history-year {
             font-size: 2rem;
             font-weight: bold;
-            color: #ffb6c1;
+            color: #ff6b8a;
             margin-bottom: 15px;
             text-align: center;
         }
         .history-keyword {
             font-size: 1.2rem;
             font-weight: 600;
-            color: #333;
+            color: #2c2c2c;
             margin-bottom: 15px;
             padding: 10px;
-            background: rgba(255, 182, 193, 0.08);
+            background: rgba(255, 143, 171, 0.1);
             border-radius: 6px;
             text-align: center;
+            border: 1px solid rgba(255, 143, 171, 0.2);
         }
         .history-shields {
             display: flex;
@@ -698,14 +708,18 @@
             display: block;
             text-align: center;
             padding: 10px;
-            background: #ffb6c1;
+            background: #ff8fab;
             color: white;
             text-decoration: none;
             border-radius: 6px;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(255, 143, 171, 0.3);
         }
         .history-article-link:hover {
-            background: #ffccd5;
+            background: #ff7a9d;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 143, 171, 0.4);
         }
         @media (max-width: 768px) {
             body { padding-top: 140px; } /* 移动端导航栏可能换行，需要更多空间 */
