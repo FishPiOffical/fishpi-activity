@@ -168,18 +168,40 @@
         /* 登录提示 */
         .login-prompt {
             background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-            border: 2px solid #ffc107;
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+            border: 3px solid #ffc107;
+            padding: 25px 30px;
+            border-radius: 12px;
+            margin-bottom: 25px;
             text-align: center;
-            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+            box-shadow: 0 6px 20px rgba(255, 193, 7, 0.3);
         }
         .login-prompt p {
             color: #856404;
-            font-size: 1rem;
-            font-weight: 500;
-            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin: 0 0 15px 0;
+            line-height: 1.6;
+        }
+        .login-prompt-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+            color: #333;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: 2px solid #ff9800;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        .login-prompt-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 152, 0, 0.4);
+            background: linear-gradient(135deg, #ffb300 0%, #ffa000 100%);
+        }
+        .login-prompt-btn:active {
+            transform: translateY(0);
         }
         /* 活动区块 */
         .activity-section {
@@ -693,6 +715,16 @@
                 right: 20px;
                 font-size: 1.3rem;
             }
+            .login-prompt {
+                padding: 20px 15px;
+            }
+            .login-prompt p {
+                font-size: 1rem;
+            }
+            .login-prompt-btn {
+                font-size: 1rem;
+                padding: 10px 25px;
+            }
         }
     </style>
 </head>
@@ -727,6 +759,7 @@
         </header>
         <div id="loginPrompt" class="login-prompt" style="display: none;">
             <p>💡 请先登录后参与活动设计和投票，未登录用户可以查看投票结果</p>
+            <a href="#" onclick="redirectToLogin(); return false;" class="login-prompt-btn">🚀 立即登录</a>
         </div>
         <!-- 活动一：五周年关键词 -->
         <div class="activity-section" id="activity1">
