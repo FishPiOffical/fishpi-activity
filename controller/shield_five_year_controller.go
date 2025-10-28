@@ -2,8 +2,10 @@ package controller
 
 import (
 	"bless-activity/model"
+	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
@@ -66,6 +68,32 @@ func (controller *ShieldFiveYearController) CheckLogin(event *core.RequestEvent)
 	return event.Next()
 }
 
+// CheckActivityTime 检查活动是否在有效时间范围内
+func (controller *ShieldFiveYearController) CheckActivityTime(activityId string) error {
+	activity, err := controller.app.FindRecordById(model.DbNameActivities, activityId)
+	if err != nil {
+		return err
+	}
+
+	activityModel := model.NewActivity(activity)
+	now := time.Now()
+
+	start := activityModel.Start()
+	end := activityModel.End()
+
+	// 检查活动是否已开始
+	if !start.IsZero() && now.Before(start.Time()) {
+		return errors.New("活动尚未开始")
+	}
+
+	// 检查活动是否已结束
+	if !end.IsZero() && now.After(end.Time()) {
+		return errors.New("活动已结束")
+	}
+
+	return nil
+}
+
 // CreateShield 创建徽章
 func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) error {
 	// 获取表单参数
@@ -88,6 +116,11 @@ func (controller *ShieldFiveYearController) CreateShield(e *core.RequestEvent) e
 
 	if activityId == "" || text == "" {
 		return e.BadRequestError("活动ID和文本不能为空", nil)
+	}
+
+	// 检查活动时间
+	if err := controller.CheckActivityTime(activityId); err != nil {
+		return e.BadRequestError(err.Error(), err)
 	}
 
 	user := model.NewUser(e.Auth)
@@ -299,6 +332,11 @@ func (controller *ShieldFiveYearController) CreateArticle(e *core.RequestEvent) 
 		return e.BadRequestError("活动ID、标题和内容不能为空", nil)
 	}
 
+	// 检查活动时间
+	if err := controller.CheckActivityTime(data.ActivityId); err != nil {
+		return e.BadRequestError(err.Error(), err)
+	}
+
 	user := model.NewUser(e.Auth)
 
 	// 检查用户是否已经为该活动创建过文章
@@ -441,6 +479,11 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 	// 如果没有提供voteId，通过activityId查找
 	voteId := data.VoteId
 	if voteId == "" && data.ActivityId != "" {
+		// 检查活动时间
+		if err := controller.CheckActivityTime(data.ActivityId); err != nil {
+			return e.BadRequestError(err.Error(), err)
+		}
+
 		activityModel := new(model.Activity)
 		if err := controller.app.RecordQuery(model.DbNameActivities).Where(dbx.HashExp{model.CommonFieldId: data.ActivityId}).One(activityModel); err != nil {
 			return e.BadRequestError("活动不存在", err)
@@ -449,6 +492,11 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 
 		if voteId == "" {
 			return e.BadRequestError("该活动未配置投票", nil)
+		}
+	} else if data.ActivityId != "" {
+		// 如果提供了activityId，仍然需要检查时间
+		if err := controller.CheckActivityTime(data.ActivityId); err != nil {
+			return e.BadRequestError(err.Error(), err)
 		}
 	}
 
@@ -654,6 +702,14 @@ func (controller *ShieldFiveYearController) UpdateShield(e *core.RequestEvent) e
 
 	article := model.NewArticle(articleRecord)
 
+	// 检查活动时间
+	activityId := article.GetString(model.ArticlesFieldActivityId)
+	if activityId != "" {
+		if err := controller.CheckActivityTime(activityId); err != nil {
+			return e.BadRequestError(err.Error(), err)
+		}
+	}
+
 	// 检查权限：只能更新自己文章对应的徽章
 	if article.UserId() != authRecord.Id {
 		return e.ForbiddenError("无权限更新此徽章", nil)
@@ -786,6 +842,14 @@ func (controller *ShieldFiveYearController) UpdateArticle(e *core.RequestEvent) 
 	}
 
 	article := model.NewArticle(record)
+
+	// 检查活动时间
+	activityId := article.GetString(model.ArticlesFieldActivityId)
+	if activityId != "" {
+		if err := controller.CheckActivityTime(activityId); err != nil {
+			return e.BadRequestError(err.Error(), err)
+		}
+	}
 
 	// 检查权限：只能更新自己的文章
 	if article.UserId() != authRecord.Id {
@@ -1048,6 +1112,26 @@ func (controller *ShieldFiveYearController) DeleteVote(e *core.RequestEvent) err
 	// 检查权限：只能删除自己的投票
 	if voteLog.FromUserId() != authRecord.Id {
 		return e.ForbiddenError("无权限删除此投票", nil)
+	}
+
+	// 通过voteId查找对应的活动，检查活动时间
+	voteId := voteLog.VoteId()
+	activities, err := controller.app.FindRecordsByFilter(
+		model.DbNameActivities,
+		"voteId = {:voteId}",
+		"",
+		1,
+		0,
+		map[string]any{
+			"voteId": voteId,
+		},
+	)
+
+	if err == nil && len(activities) > 0 {
+		activityId := activities[0].Id
+		if err := controller.CheckActivityTime(activityId); err != nil {
+			return e.BadRequestError(err.Error(), err)
+		}
 	}
 
 	// 删除投票记录
