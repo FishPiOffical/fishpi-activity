@@ -68,9 +68,25 @@
         }
 
         .activity-card.expired {
-            opacity: 0.6;
-            background: #f5f5f5;
+            opacity: 0.7;
+            background: white;
             cursor: not-allowed;
+            border: 2px solid #e0e0e0;
+            position: relative;
+            box-shadow: 0 2px 15px rgba(158, 158, 158, 0.1);
+        }
+
+        .activity-card.expired::before {
+            content: "已过期";
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #9E9E9E;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
         }
 
         .activity-card.expired * {
