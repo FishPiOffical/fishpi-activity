@@ -754,6 +754,115 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(214, 162, 173, 0.4);
         }
+        /* 活动未开始蒙版 */
+        .activity-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(229, 215, 214, 0.95);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        .overlay-content {
+            background: white;
+            padding: 50px 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(154, 131, 152, 0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            border: 3px solid #d6a2ad;
+        }
+        .overlay-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .overlay-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #9a8398;
+            margin-bottom: 15px;
+        }
+        .overlay-message {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        .countdown-container {
+            background: rgba(214, 162, 173, 0.1);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #d6a2ad;
+        }
+        .countdown-label {
+            font-size: 1rem;
+            color: #9a8398;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        .countdown-timer {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .countdown-item {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(214, 162, 173, 0.2);
+            min-width: 80px;
+        }
+        .countdown-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #d6a2ad;
+            display: block;
+            line-height: 1;
+        }
+        .countdown-unit {
+            font-size: 0.9rem;
+            color: #9a8398;
+            margin-top: 5px;
+            display: block;
+        }
+        .overlay-start-time {
+            color: #d6a2ad;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+        .overlay-back-btn {
+            display: inline-block;
+            background: #d6a2ad;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(214, 162, 173, 0.3);
+        }
+        .overlay-back-btn:hover {
+            background: #ecb8c0;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(214, 162, 173, 0.4);
+        }
         @media (max-width: 768px) {
             body { padding-top: 140px; } /* 移动端导航栏可能换行，需要更多空间 */
             header h1 { font-size: 1.8rem; }
@@ -816,6 +925,21 @@
     </style>
 </head>
 <body>
+    <!-- 活动未开始蒙版 -->
+    <div class="activity-overlay" id="activityOverlay" style="display: none;">
+        <div class="overlay-content">
+            <div class="overlay-icon">⏰</div>
+            <div class="overlay-title">活动即将开始</div>
+            <div class="overlay-message">活动尚未开始，敬请期待！您可以先浏览活动详情。</div>
+            <div class="countdown-container">
+                <div class="countdown-label">距离活动开始还有</div>
+                <div class="countdown-timer" id="countdownTimer"></div>
+            </div>
+            <div class="overlay-start-time" id="overlayStartTime"></div>
+            <button class="overlay-back-btn" onclick="window.location.href='/index.html'">返回活动列表</button>
+        </div>
+    </div>
+
     <!-- 导航栏 -->
     <nav class="nav-bar">
         <div class="nav-container">
@@ -1046,6 +1170,116 @@
     </div>
 
     <script>
+        // ============ 活动时间和倒计时功能 ============
+
+        let activityStartTime = null;
+        let countdownInterval = null;
+
+        // 检查活动是否已开始
+        function checkActivityTime(startTime) {
+            const now = new Date();
+            const start = new Date(startTime);
+
+            if (now < start) {
+                // 活动未开始，显示蒙版
+                activityStartTime = start;
+                showOverlay();
+                startCountdown();
+                return false;
+            }
+            return true;
+        }
+
+        // 显示蒙版
+        function showOverlay() {
+            const overlay = document.getElementById('activityOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+
+                // 格式化开始时间
+                const startTimeElement = document.getElementById('overlayStartTime');
+                if (startTimeElement && activityStartTime) {
+                    const formatted = formatDateTime(activityStartTime);
+                    startTimeElement.textContent = `开始时间：${formatted}`;
+                }
+            }
+        }
+
+        // 开始倒计时
+        function startCountdown() {
+            updateCountdown(); // 立即更新一次
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
+        // 更新倒计时
+        function updateCountdown() {
+            if (!activityStartTime) return;
+
+            const now = new Date();
+            const diff = activityStartTime - now;
+
+            if (diff <= 0) {
+                // 活动已开始，刷新页面
+                clearInterval(countdownInterval);
+                window.location.reload();
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            const timerElement = document.getElementById('countdownTimer');
+            if (!timerElement) return;
+
+            let html = '';
+
+            // 如果大于1天，显示天数
+            if (days > 0) {
+                html = `
+                    <div class="countdown-item">
+                        <span class="countdown-value">${days}</span>
+                        <span class="countdown-unit">天</span>
+                    </div>
+                `;
+                // 如果超过1天，只显示天数
+                if (days >= 1) {
+                    timerElement.innerHTML = html;
+                    return;
+                }
+            }
+
+            // 显示时分秒
+            html = `
+                <div class="countdown-item">
+                    <span class="countdown-value">${String(hours).padStart(2, '0')}</span>
+                    <span class="countdown-unit">时</span>
+                </div>
+                <div class="countdown-item">
+                    <span class="countdown-value">${String(minutes).padStart(2, '0')}</span>
+                    <span class="countdown-unit">分</span>
+                </div>
+                <div class="countdown-item">
+                    <span class="countdown-value">${String(seconds).padStart(2, '0')}</span>
+                    <span class="countdown-unit">秒</span>
+                </div>
+            `;
+
+            timerElement.innerHTML = html;
+        }
+
+        // 格式化日期时间
+        function formatDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
         // ============ 导航和滚动功能 ============
 
         // 回到顶部功能
@@ -1276,6 +1510,11 @@
                         if (timeText) {
                             timeValueElement.textContent = timeText;
                             timeElement.style.display = 'inline-block';
+                        }
+
+                        // 检查活动是否已开始
+                        if (mainActivity.start) {
+                            checkActivityTime(mainActivity.start);
                         }
                     }
                 }

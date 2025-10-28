@@ -89,6 +89,28 @@
             font-weight: 600;
         }
 
+        .activity-card.upcoming {
+            opacity: 1;
+            background: white;
+            cursor: pointer;
+            border: 2px solid #d6a2ad;
+            position: relative;
+            box-shadow: 0 2px 15px rgba(214, 162, 173, 0.2);
+        }
+
+        .activity-card.upcoming::before {
+            content: "预览";
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #d6a2ad;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
         .activity-card.expired * {
             color: #666 !important;
         }
@@ -136,6 +158,11 @@
 
         .status-active {
             background: #d6a2ad;
+            color: white;
+        }
+
+        .status-upcoming {
+            background: #9a8398;
             color: white;
         }
 
@@ -264,6 +291,7 @@
                 const startTime = new Date(activity.start);
                 const endTime = new Date(activity.end);
                 const isExpired = now > endTime;
+                const isUpcoming = now < startTime;
 
                 // 确定跳转URL
                 let targetUrl = '';
@@ -277,12 +305,25 @@
                     onclick = `onclick="window.location.href='${escapeHtml(targetUrl)}'"`
                 }
 
-                const expiredClass = isExpired ? ' expired' : '';
-                const statusClass = isExpired ? 'status-expired' : 'status-active';
-                const statusText = isExpired ? '已结束' : '进行中';
+                let cardClass = '';
+                let statusClass = '';
+                let statusText = '';
+
+                if (isExpired) {
+                    cardClass = ' expired';
+                    statusClass = 'status-expired';
+                    statusText = '已结束';
+                } else if (isUpcoming) {
+                    cardClass = ' upcoming';
+                    statusClass = 'status-upcoming';
+                    statusText = '即将开始';
+                } else {
+                    statusClass = 'status-active';
+                    statusText = '进行中';
+                }
 
                 return `
-                    <div class="activity-card${expiredClass}" ${onclick}>
+                    <div class="activity-card${cardClass}" ${onclick}>
                         <div class="activity-name">${escapeHtml(activity.name)}</div>
                         <div class="activity-time">
                             <div>开始：${formatDateTime(startTime)}</div>
