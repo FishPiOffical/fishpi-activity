@@ -857,11 +857,39 @@
             border: none;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(214, 162, 173, 0.3);
+            margin: 0 8px;
         }
         .overlay-back-btn:hover {
             background: #ecb8c0;
             transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(214, 162, 173, 0.4);
+        }
+        .overlay-preview-btn {
+            display: inline-block;
+            background: #9a8398;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(154, 131, 152, 0.3);
+            margin: 0 8px;
+        }
+        .overlay-preview-btn:hover {
+            background: #b5a3b3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(154, 131, 152, 0.4);
+        }
+        .overlay-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 20px;
         }
         @media (max-width: 768px) {
             body { padding-top: 140px; } /* 移动端导航栏可能换行，需要更多空间 */
@@ -936,7 +964,10 @@
                 <div class="countdown-timer" id="countdownTimer"></div>
             </div>
             <div class="overlay-start-time" id="overlayStartTime"></div>
-            <button class="overlay-back-btn" onclick="window.location.href='/index.html'">返回活动列表</button>
+            <div class="overlay-buttons">
+                <button class="overlay-preview-btn" onclick="hideOverlay()">👀 查看活动详情</button>
+                <button class="overlay-back-btn" onclick="window.location.href='/index.html'">返回活动列表</button>
+            </div>
         </div>
     </div>
 
@@ -1203,6 +1234,15 @@
                     startTimeElement.textContent = `开始时间：${formatted}`;
                 }
             }
+        }
+
+        // 隐藏蒙版（查看活动详情）
+        function hideOverlay() {
+            const overlay = document.getElementById('activityOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+            // 继续保持倒计时运行，以便用户可以随时看到剩余时间
         }
 
         // 开始倒计时
