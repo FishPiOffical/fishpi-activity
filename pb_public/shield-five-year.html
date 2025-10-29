@@ -592,6 +592,44 @@
         .badge-preview-badges img:hover {
             transform: scale(1.05);
         }
+        /* 徽章预览分割线 */
+        .badge-preview-divider {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #d6a2ad, transparent);
+            margin: 30px 0 20px 0;
+            position: relative;
+        }
+        .badge-preview-divider::before {
+            content: '3倍缩放预览';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 0 15px;
+            color: #9a8398;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        /* 3倍缩放徽章区域 */
+        .badge-preview-scaled {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            width: 100%;
+            padding: 20px;
+            background: rgba(214, 162, 173, 0.05);
+            border-radius: 8px;
+        }
+        .badge-preview-scaled img {
+            max-width: 100%;
+            height: auto;
+            cursor: default;
+            box-shadow: 0 2px 10px rgba(154, 131, 152, 0.2);
+            border-radius: 4px;
+        }
         /* 内容详情模态框 */
         .content-detail-modal {
             display: none;
@@ -2985,6 +3023,11 @@
                 const response = await fetch('/api/yearly-histories');
                 let allBadges = [];
 
+                // 添加当前预览的徽章
+                if (currentShield) {
+                    allBadges.push(currentShield);
+                }
+
                 if (response.ok) {
                     const data = await response.json();
                     const histories = data.items || [];
@@ -2999,12 +3042,7 @@
                     });
                 }
 
-                // 添加当前预览的徽章
-                if (currentShield) {
-                    allBadges.push(currentShield);
-                }
-
-                // 构建徽章HTML
+                // 构建徽章HTML（原始比例）
                 const badgesHtml = allBadges.map(shield => {
                     let shieldUrl = `https://badge.aweoo.com/gen?ver=${shield.ver || '0.1'}&scale=${shield.scale || '0.79'}&txt=${encodeURIComponent(shield.text || '')}&backcolor=${shield.backcolor || ''}&fontcolor=${shield.fontcolor || ''}`;
                     if (shield.url) {
@@ -3020,6 +3058,22 @@
                     return `<img src="${shieldUrl}" alt="徽章" referrerpolicy="no-referrer">`;
                 }).join('');
 
+                // 构建3倍缩放徽章HTML
+                const scaledBadgesHtml = [currentShield].map(shield => {
+                    let shieldUrl = `https://badge.aweoo.com/gen?ver=${shield.ver || '0.1'}&scale=3&txt=${encodeURIComponent(shield.text || '')}&backcolor=${shield.backcolor || ''}&fontcolor=${shield.fontcolor || ''}`;
+                    if (shield.url) {
+                        shieldUrl += `&url=${encodeURIComponent(shield.url)}`;
+                    }
+                    // 添加可选参数
+                    const optionalParams = ['size', 'border', 'barlen', 'fontsize', 'barradius', 'shadow', 'anime'];
+                    optionalParams.forEach(param => {
+                        if (shield[param] !== undefined && shield[param] !== '') {
+                            shieldUrl += `&${param}=${shield[param]}`;
+                        }
+                    });
+                    return `<img src="${shieldUrl}" alt="徽章3倍缩放" referrerpolicy="no-referrer">`;
+                }).join('');
+
                 // 构建完整的预览内容
                 modalContent.innerHTML = `
                     <img src="${escapeHtml(userAvatar)}" alt="头像" class="badge-preview-avatar"
@@ -3029,6 +3083,12 @@
                     <div class="badge-preview-badges">
                         ${badgesHtml || '<p>暂无徽章</p>'}
                     </div>
+                    ${allBadges.length > 0 ? `
+                        <div class="badge-preview-divider"></div>
+                        <div class="badge-preview-scaled">
+                            ${scaledBadgesHtml}
+                        </div>
+                    ` : ''}
                 `;
             } catch (error) {
                 console.error('加载徽章预览失败:', error);
