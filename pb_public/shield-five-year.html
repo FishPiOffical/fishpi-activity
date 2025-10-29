@@ -453,15 +453,82 @@
         .vote-item-shield {
             margin: 12px 0;
             text-align: center;
+            position: relative;
         }
         .vote-item-shield img {
             max-width: 100%;
             height: auto;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            padding: 4px;
+            box-shadow: 0 2px 8px rgba(154, 131, 152, 0.15);
         }
         .vote-item-shield img:hover {
-            transform: scale(1.03);
+            transform: scale(1.08);
+            border-color: #d6a2ad;
+            box-shadow: 0 4px 16px rgba(214, 162, 173, 0.4);
+        }
+        /* 徽章图标指示器 */
+        .vote-item-shield::before {
+            content: '👁️';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(154, 131, 152, 0.95);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            opacity: 0.8;
+            transition: all 0.3s;
+            z-index: 5;
+            pointer-events: none;
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+        .vote-item-shield:hover::before {
+            opacity: 1;
+            transform: scale(1.15);
+            animation: none;
+        }
+        @keyframes badgePulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+        }
+        /* 徽章悬停提示 */
+        .vote-item-shield::after {
+            content: '点击预览';
+            position: absolute;
+            bottom: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(214, 162, 173, 0.95);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(154, 131, 152, 0.3);
+        }
+        .vote-item-shield:hover::after {
+            opacity: 1;
+            bottom: -32px;
         }
         .vote-item-actions {
             display: flex;
