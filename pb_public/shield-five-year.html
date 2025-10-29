@@ -404,9 +404,51 @@
             color: #444;
             line-height: 1.6;
             font-size: 0.95rem;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             word-break: break-word;
             white-space: pre-wrap;
+            position: relative;
+            max-height: 4.8em; /* 固定显示约3行 */
+            overflow: hidden;
+        }
+        .vote-item-description::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2em;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+            pointer-events: none;
+        }
+        .vote-item-description.short {
+            max-height: none; /* 短文本不限制高度 */
+        }
+        .vote-item-description.short::after {
+            display: none; /* 短文本不显示渐变 */
+        }
+        .view-full-btn {
+            color: #9a8398;
+            font-size: 0.85rem;
+            cursor: pointer;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            background: rgba(154, 131, 152, 0.08);
+            border: 1px solid rgba(154, 131, 152, 0.15);
+            margin-bottom: 8px;
+        }
+        .view-full-btn:hover {
+            background: rgba(154, 131, 152, 0.15);
+            color: #d6a2ad;
+            transform: translateY(-1px);
+        }
+        .view-full-btn:active {
+            transform: translateY(0);
         }
         .vote-item-shield {
             margin: 12px 0;
@@ -549,6 +591,101 @@
         }
         .badge-preview-badges img:hover {
             transform: scale(1.05);
+        }
+        /* 内容详情模态框 */
+        .content-detail-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        .content-detail-modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .content-detail-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(154, 131, 152, 0.3);
+        }
+        .content-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(214, 162, 173, 0.2);
+        }
+        .content-detail-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #9a8398;
+            margin: 0;
+            flex: 1;
+        }
+        .content-detail-close {
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        .content-detail-close:hover {
+            background: rgba(214, 162, 173, 0.1);
+            color: #d6a2ad;
+        }
+        .content-detail-body {
+            color: #444;
+            line-height: 1.8;
+            font-size: 1rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .content-detail-author {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: rgba(214, 162, 173, 0.08);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .content-detail-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid rgba(214, 162, 173, 0.3);
+        }
+        .content-detail-author-info {
+            flex: 1;
+        }
+        .content-detail-author-name {
+            font-weight: 600;
+            color: #9a8398;
+            font-size: 1rem;
+        }
+        .content-detail-author-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 2px;
         }
         /* 编辑按钮 */
         .btn-secondary { background: #6c757d; }
@@ -1199,6 +1336,18 @@
             <div id="badgePreviewContent" class="badge-preview-content">
                 <p>加载中...</p>
             </div>
+        </div>
+    </div>
+
+    <!-- 内容详情模态框 -->
+    <div id="contentDetailModal" class="content-detail-modal" onclick="closeContentDetail(event)">
+        <div class="content-detail-content" onclick="event.stopPropagation()">
+            <div class="content-detail-header">
+                <h3 class="content-detail-title" id="contentDetailTitle">内容详情</h3>
+                <button class="content-detail-close" onclick="closeContentDetail()">&times;</button>
+            </div>
+            <div class="content-detail-author" id="contentDetailAuthor"></div>
+            <div class="content-detail-body" id="contentDetailBody"></div>
         </div>
     </div>
 
@@ -2583,6 +2732,20 @@
                     }
                 }
 
+                // 检查描述长度，决定是否需要"查看全部"按钮
+                // 同时考虑字符数和行数，满足任一条件就显示按钮
+                const contentLength = article.content.length;
+                const lineCount = (article.content.match(/\n/g) || []).length + 1; // 换行符数量+1
+                const needsViewBtn = contentLength > 150 || lineCount > 4; // 超过150字符或超过4行
+
+                // 转义用户数据用于JSON传递
+                const articleDataJson = JSON.stringify({
+                    title: article.title,
+                    content: article.content,
+                    avatar: article.user?.avatar || '',
+                    nickname: article.user?.nickname || article.user?.name || '匿名'
+                }).replace(/"/g, '&quot;');
+
                 return `
                     <div class="vote-item ${article.isVoted ? 'voted' : ''} ${article.isMySubmission ? 'my-submission' : ''}">
                         <div class="vote-item-header">
@@ -2597,7 +2760,12 @@
                         <div class="vote-item-content">
                             <div class="vote-item-keyword">${escapeHtml(article.title)}</div>
                             ${shieldHtml ? `<div class="vote-item-shield">${shieldHtml}</div>` : ''}
-                            <div class="vote-item-description">${escapeHtml(article.content)}</div>
+                            <div class="vote-item-description ${needsViewBtn ? '' : 'short'}">${escapeHtml(article.content)}</div>
+                            ${needsViewBtn ? `
+                                <div class="view-full-btn" onclick='showContentDetail(${articleDataJson})'>
+                                    <span>📖 查看全部</span>
+                                </div>
+                            ` : ''}
                         </div>
                         <div class="vote-item-actions">
                             <span class="vote-count" onclick="showVoteDetails('${activityId}', '${article.user?.id}')">❤️ ${article.voteCount} 票</span>
@@ -2608,6 +2776,49 @@
             }).join('');
 
             container.innerHTML = sortControlsHtml + `<div class="vote-list">${html}</div>`;
+        }
+
+        // 显示内容详情弹窗
+        function showContentDetail(articleData) {
+            const modal = document.getElementById('contentDetailModal');
+            const titleElement = document.getElementById('contentDetailTitle');
+            const authorElement = document.getElementById('contentDetailAuthor');
+            const bodyElement = document.getElementById('contentDetailBody');
+
+            if (!modal || !titleElement || !authorElement || !bodyElement) return;
+
+            // 设置标题
+            titleElement.textContent = articleData.title;
+
+            // 设置作者信息
+            authorElement.innerHTML = `
+                <img src="${escapeHtml(articleData.avatar)}"
+                     alt="avatar"
+                     class="content-detail-avatar"
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><rect width=%2240%22 height=%2240%22 fill=%22%23ddd%22/></svg>'">
+                <div class="content-detail-author-info">
+                    <div class="content-detail-author-name">${escapeHtml(articleData.nickname)}</div>
+                    <div class="content-detail-author-label">作者</div>
+                </div>
+            `;
+
+            // 设置内容
+            bodyElement.textContent = articleData.content;
+
+            // 显示模态框
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden'; // 禁止背景滚动
+        }
+
+        // 关闭内容详情弹窗
+        function closeContentDetail(event) {
+            if (event && event.target.id !== 'contentDetailModal') return;
+
+            const modal = document.getElementById('contentDetailModal');
+            if (modal) {
+                modal.classList.remove('show');
+                document.body.style.overflow = ''; // 恢复背景滚动
+            }
         }
 
         // 投票
