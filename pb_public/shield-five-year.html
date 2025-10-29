@@ -379,12 +379,25 @@
             border-radius: 50%;
             margin-right: 8px;
             flex-shrink: 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .vote-item-avatar:hover {
+            border-color: #d6a2ad;
+            transform: scale(1.1);
         }
         .vote-item-name {
             font-weight: 500;
             color: #555;
             font-size: 0.875rem;
             flex: 1;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .vote-item-name:hover {
+            color: #d6a2ad;
+            text-decoration: underline;
         }
         .vote-item-keyword {
             font-size: 1.5rem;
@@ -2856,8 +2869,12 @@
                         <div class="vote-item-header">
                             <img src="${escapeHtml(article.user?.avatar || '')}"
                                  alt="avatar" class="vote-item-avatar"
+                                 onclick="window.open('https://fishpi.cn/member/${escapeHtml(article.user?.name || '')}', '_blank')"
+                                 title="查看 ${escapeHtml(article.user?.nickname || article.user?.name || '匿名')} 的主页"
                                  onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><rect width=%2232%22 height=%2232%22 fill=%22%23ddd%22/></svg>'">
-                            <div class="vote-item-name">
+                            <div class="vote-item-name"
+                                 onclick="window.open('https://fishpi.cn/member/${escapeHtml(article.user?.name || '')}', '_blank')"
+                                 title="查看 ${escapeHtml(article.user?.nickname || article.user?.name || '匿名')} 的主页">
                                 ${escapeHtml(article.user?.nickname || article.user?.name || '匿名')}
                                 ${article.isMySubmission ? ' <span style="color: #ff9800; font-size: 0.875rem;">★</span>' : ''}
                             </div>
