@@ -27,10 +27,10 @@ func NewActivityController(event *core.ServeEvent) *ActivityController {
 }
 
 func (controller *ActivityController) registerRoutes() {
-	controller.event.Router.GET("/api/activities", controller.GetActivities)
-	controller.event.Router.GET("/api/activities/{id}", controller.GetActivityRewards)
-	controller.event.Router.GET("/api/yearly-histories", controller.GetYearlyHistories)
-	controller.event.Router.GET("/api/activity/list", controller.GetActivityList)
+	controller.event.Router.GET("/activity-api/activities", controller.GetActivities)
+	controller.event.Router.GET("/activity-api/activities/{id}", controller.GetActivityRewards)
+	controller.event.Router.GET("/activity-api/yearly-histories", controller.GetYearlyHistories)
+	controller.event.Router.GET("/activity-api/recent", controller.GetActivityList)
 }
 
 func (controller *ActivityController) GetActivities(e *core.RequestEvent) error {

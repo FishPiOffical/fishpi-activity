@@ -3,7 +3,7 @@
 
     // 配置项
     const config = {
-        apiUrl: 'https://fishpi-activity.aweoo.com/api/activity/list', // API地址
+        apiUrl: 'https://fishpi-activity.aweoo.com/activity-api/recent', // API地址
         navSelector: '.nav-tabs', // 导航容器选择器
         linkHref: 'https://fishpi-activity.aweoo.com/', // 活动链接地址
         linkText: '活动', // 链接文本

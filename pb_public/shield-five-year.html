@@ -1754,7 +1754,7 @@
         // 加载主活动信息
         async function loadMainActivity() {
             try {
-                const response = await fetch(`/api/activities/${ACTIVITY_IDS.main}`);
+                const response = await fetch(`/activity-api/activities/${ACTIVITY_IDS.main}`);
                 if (response.ok) {
                     const mainActivity = await response.json();
 
@@ -1837,9 +1837,9 @@
             try {
                 // 并行查询三个子活动的奖励信息
                 const [keywordRewards, badge2025Rewards, badge5yearRewards] = await Promise.all([
-                    fetch(`/api/activities/${ACTIVITY_IDS.keyword}`).then(res => res.ok ? res.json() : null),
-                    fetch(`/api/activities/${ACTIVITY_IDS.badge2025}`).then(res => res.ok ? res.json() : null),
-                    fetch(`/api/activities/${ACTIVITY_IDS.badge5year}`).then(res => res.ok ? res.json() : null)
+                    fetch(`/activity-api/activities/${ACTIVITY_IDS.keyword}`).then(res => res.ok ? res.json() : null),
+                    fetch(`/activity-api/activities/${ACTIVITY_IDS.badge2025}`).then(res => res.ok ? res.json() : null),
+                    fetch(`/activity-api/activities/${ACTIVITY_IDS.badge5year}`).then(res => res.ok ? res.json() : null)
                 ]);
 
                 // 展示活动信息和奖励
@@ -1878,7 +1878,7 @@
         // 加载历年数据
         async function loadYearlyHistories() {
             try {
-                const response = await fetch('/api/yearly-histories');
+                const response = await fetch('/activity-api/yearly-histories');
                 if (!response.ok) {
                     throw new Error('Failed to load yearly histories');
                 }
@@ -3104,7 +3104,7 @@
 
             try {
                 // 获取历年数据
-                const response = await fetch('/api/yearly-histories');
+                const response = await fetch('/activity-api/yearly-histories');
                 let allBadges = [];
 
                 // 添加当前预览的徽章

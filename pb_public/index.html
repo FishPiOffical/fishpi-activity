@@ -301,7 +301,7 @@
         // 获取活动列表
         async function loadActivities() {
             try {
-                const response = await fetch('/api/activities');
+                const response = await fetch('/activity-api/activities');
                 if (!response.ok) {
                     throw new Error('获取活动列表失败');
                 }
