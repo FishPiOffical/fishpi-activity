@@ -4,6 +4,8 @@ import (
 	"bless-activity/model"
 	"log/slog"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -28,6 +30,7 @@ func (controller *ActivityController) registerRoutes() {
 	controller.event.Router.GET("/api/activities", controller.GetActivities)
 	controller.event.Router.GET("/api/activities/{id}", controller.GetActivityRewards)
 	controller.event.Router.GET("/api/yearly-histories", controller.GetYearlyHistories)
+	controller.event.Router.GET("/api/activity/list", controller.GetActivityList)
 }
 
 func (controller *ActivityController) GetActivities(e *core.RequestEvent) error {
@@ -181,6 +184,144 @@ func (controller *ActivityController) GetActivityRewards(e *core.RequestEvent) e
 		"start":      activityModel.Start(),
 		"end":        activityModel.End(),
 	})
+}
+
+// GetActivityList 获取活动列表（正在进行的所有活动 + 即将开始的最多5个活动）
+func (controller *ActivityController) GetActivityList(e *core.RequestEvent) error {
+	// 获取expand参数
+	expandParam := e.Request.URL.Query().Get("expand")
+	expandMap := make(map[string]bool)
+	if expandParam != "" {
+		for _, item := range parseExpandParam(expandParam) {
+			expandMap[item] = true
+		}
+	}
+
+	// 查询所有未隐藏的活动
+	activities, err := controller.app.FindRecordsByFilter(
+		model.DbNameActivities,
+		model.ActivitiesFieldHideInList+" = false",
+		model.ActivitiesFieldStart, // 按开始时间正序排列
+		0,
+		0,
+	)
+
+	if err != nil {
+		return e.InternalServerError("Failed to load activities", err)
+	}
+
+	type RewardItem struct {
+		Name  string `json:"name"`
+		Min   int    `json:"min"`
+		Max   int    `json:"max"`
+		Point int    `json:"point"`
+		More  string `json:"more"`
+	}
+
+	type ActivityItem struct {
+		ID          string      `json:"id"`
+		Name        string      `json:"name"`
+		Slug        string      `json:"slug,omitempty"`
+		SlugUrl     string      `json:"slugUrl,omitempty"`
+		ArticleUrl  string      `json:"articleUrl,omitempty"`
+		ExternalUrl string      `json:"externalUrl,omitempty"`
+		Desc        string      `json:"desc,omitempty"`
+		Start       string      `json:"start"`
+		End         string      `json:"end"`
+		FirstReward *RewardItem `json:"firstReward,omitempty"`
+	}
+
+	activeActivities := make([]ActivityItem, 0)
+	upcomingActivities := make([]ActivityItem, 0)
+
+	// 获取应用URL
+	appURL := controller.app.Settings().Meta.AppURL
+
+	for _, record := range activities {
+		activity := model.NewActivity(record)
+
+		startTime := activity.Start().Time()
+		endTime := activity.End().Time()
+
+		activityItem := ActivityItem{
+			ID:    activity.ProxyRecord().Id,
+			Name:  activity.Name(),
+			Start: activity.Start().String(),
+			End:   activity.End().String(),
+		}
+
+		// links - 包含slug, articleUrl, externalUrl
+		if expandMap["links"] {
+			slug := activity.Slug()
+			if slug != "" {
+				activityItem.Slug = slug
+				activityItem.SlugUrl = appURL + "/" + slug + ".html"
+			}
+			activityItem.ArticleUrl = activity.ArticleUrl()
+			activityItem.ExternalUrl = activity.ExternalUrl()
+		}
+
+		// details - 包含desc
+		if expandMap["details"] {
+			activityItem.Desc = activity.Desc()
+		}
+
+		// rewards - 包含奖励信息
+		if expandMap["rewards"] {
+			rewardGroupId := activity.RewardGroupId()
+			if rewardGroupId != "" {
+				rewards, err := controller.app.FindRecordsByFilter(
+					model.DbNameRewards,
+					model.RewardsFieldRewardGroupId+" = {:rewardGroupId}",
+					model.RewardsFieldMin, // 按最小名次排序
+					1,                     // 只取第一个
+					0,
+					map[string]any{"rewardGroupId": rewardGroupId},
+				)
+
+				if err == nil && len(rewards) > 0 {
+					reward := model.NewReward(rewards[0])
+					activityItem.FirstReward = &RewardItem{
+						Name:  reward.Name(),
+						Min:   reward.Min(),
+						Max:   reward.Max(),
+						Point: reward.Point(),
+						More:  reward.More(),
+					}
+				}
+			}
+		}
+
+		// 判断活动状态
+		nowTime := time.Now()
+
+		if (startTime.Before(nowTime) || startTime.Equal(nowTime)) && endTime.After(nowTime) {
+			// 正在进行
+			activeActivities = append(activeActivities, activityItem)
+		} else if startTime.After(nowTime) {
+			// 即将开始
+			if len(upcomingActivities) < 5 {
+				upcomingActivities = append(upcomingActivities, activityItem)
+			}
+		}
+	}
+
+	return e.JSON(http.StatusOK, map[string]interface{}{
+		"active":   activeActivities,
+		"upcoming": upcomingActivities,
+	})
+}
+
+// parseExpandParam 解析expand参数
+func parseExpandParam(expand string) []string {
+	result := make([]string, 0)
+	for _, item := range strings.Split(expand, ",") {
+		trimmed := strings.TrimSpace(item)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 // GetYearlyHistories 获取历年数据
