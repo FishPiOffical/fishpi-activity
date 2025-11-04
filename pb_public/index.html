@@ -82,7 +82,7 @@
         }
 
         .activity-card.expired::before {
-            content: "已过期";
+            content: "已结束";
             position: absolute;
             top: 15px;
             right: 15px;
@@ -116,7 +116,7 @@
             font-weight: 600;
         }
 
-        .activity-card.expired * {
+        .activity-card.expired *:not(.article-link) {
             color: #666 !important;
         }
 
@@ -162,24 +162,27 @@
             padding-top: 15px;
             border-top: 1px solid #f0f0f0;
             display: flex;
-            flex-direction: column;
-            gap: 10px;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
         }
 
         .article-link {
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            color: #d6a2ad;
+            color: #d6a2ad !important;
             text-decoration: none;
             font-size: 0.9rem;
             font-weight: 500;
             transition: all 0.3s ease;
             padding: 5px 0;
+            flex-shrink: 0;
         }
 
         .article-link:hover {
-            color: #c28e9c;
+            color: #c28e9c !important;
             transform: translateX(3px);
         }
 
@@ -360,7 +363,7 @@
                 // 文章链接（总是可点击）
                 const articleLink = activity.articleUrl
                     ? `<a href="${escapeHtml(activity.articleUrl)}" target="_blank" class="article-link" onclick="event.stopPropagation()">📖 查看活动推文</a>`
-                    : '';
+                    : '<span></span>';
 
                 return `
                     <div class="activity-card${cardClass}" ${onclick}>
@@ -374,9 +377,7 @@
                         </div>
                         <div class="activity-footer">
                             ${articleLink}
-                            <div>
-                                <span class="activity-status ${statusClass}">${statusText}</span>
-                            </div>
+                            <span class="activity-status ${statusClass}">${statusText}</span>
                         </div>
                     </div>
                 `;
