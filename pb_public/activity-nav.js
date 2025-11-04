@@ -6,7 +6,11 @@
         apiUrl: 'https://fishpi-activity.aweoo.com/activity-api/recent', // API地址
         navSelector: '.nav-tabs', // 导航容器选择器
         linkHref: 'https://fishpi-activity.aweoo.com/', // 活动链接地址
-        linkText: '活动', // 链接文本
+        linkText: {
+            active: '🔥 活动进行中',     // 进行中的文本
+            upcoming: '⏰ 活动即将开始',  // 即将开始的文本
+            expired: '📋 活动'           // 已过期的文本
+        },
         linkClass: '', // 链接class（可选）
         colors: {
             active: '#ff4757',      // 进行中 - 红色
@@ -59,10 +63,17 @@
             existingLink.remove();
         }
 
+        // 根据状态获取链接文本
+        let linkText = config.linkText;
+        if (typeof linkText === 'object') {
+            linkText = linkText[status] || linkText.expired || '📋 活动';
+        }
+
         // 创建活动链接元素
         const activityLink = document.createElement('a');
         activityLink.href = config.linkHref;
-        activityLink.textContent = config.linkText;
+        activityLink.textContent = linkText;
+        activityLink.target = '_blank';
         activityLink.setAttribute('data-fishpi-activity-nav', 'true'); // 标记用于识别
 
         if (config.linkClass) {
