@@ -7,9 +7,9 @@
         navSelector: '.nav-tabs', // 导航容器选择器
         linkHref: 'https://fishpi-activity.aweoo.com/', // 活动链接地址
         linkText: {
-            active: '🔥 活动进行中',     // 进行中的文本
-            upcoming: '⏰ 活动即将开始',  // 即将开始的文本
-            expired: '📋 活动'           // 已过期的文本
+            active: '活动',     // 进行中的文本
+            upcoming: '活动',  // 即将开始的文本
+            expired: '活动'           // 已过期的文本
         },
         linkClass: '', // 链接class（可选）
         colors: {
@@ -69,10 +69,12 @@
             linkText = linkText[status] || linkText.expired || '📋 活动';
         }
 
+        linkText = '<svg><use xlink:href="#fire"></use></svg> ' + linkText;
+
         // 创建活动链接元素
         const activityLink = document.createElement('a');
         activityLink.href = config.linkHref;
-        activityLink.textContent = linkText;
+        activityLink.innerHTML = linkText;
         activityLink.target = '_blank';
         activityLink.setAttribute('data-fishpi-activity-nav', 'true'); // 标记用于识别
 
@@ -95,6 +97,12 @@
         // expired 状态不设置特殊样式，使用默认样式
 
         // 插入到第一个位置
+        const tabLinks = navTabs.querySelectorAll('a')
+        const fourthTab = tabLinks[3];
+        if (fourthTab) {
+            navTabs.insertBefore(activityLink, fourthTab);
+            return;
+        }
         navTabs.insertBefore(activityLink, navTabs.firstChild);
     }
 
