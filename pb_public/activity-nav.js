@@ -13,8 +13,8 @@
         },
         linkClass: '', // 链接class（可选）
         colors: {
-            active: '#ff4757',      // 进行中 - 红色
-            upcoming: '#ffa502'     // 即将开始 - 橙色
+            active: '#7be19a',      // 进行中 - 浅绿色
+            upcoming: '#8fd3f4'    // 即将开始 - 浅蓝色
             // expired 不设置颜色，使用默认样式
         },
         showExpired: true // 是否显示已过期的活动标签
