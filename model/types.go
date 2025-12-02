@@ -9,12 +9,13 @@ fishpi // 摸鱼派
 */
 type ConfigKey string
 
-// PointStatus
+// DistributionStatus
 /*
 ENUM(
-pending // 待发放
-success // 发放成功
-failed  // 发放失败
+pending      // 待发放
+distributing // 发放中
+failed       // 发放失败
+success      // 发放成功
 )
 */
-type PointStatus string
+type DistributionStatus string

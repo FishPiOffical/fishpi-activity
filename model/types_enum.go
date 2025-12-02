@@ -90,88 +90,94 @@ func (x *ConfigKey) UnmarshalText(text []byte) error {
 }
 
 const (
-	// PointStatusPending is a PointStatus of type pending.
+	// DistributionStatusPending is a DistributionStatus of type pending.
 	// 待发放
-	PointStatusPending PointStatus = "pending"
-	// PointStatusSuccess is a PointStatus of type success.
-	// 发放成功
-	PointStatusSuccess PointStatus = "success"
-	// PointStatusFailed is a PointStatus of type failed.
+	DistributionStatusPending DistributionStatus = "pending"
+	// DistributionStatusDistributing is a DistributionStatus of type distributing.
+	// 发放中
+	DistributionStatusDistributing DistributionStatus = "distributing"
+	// DistributionStatusFailed is a DistributionStatus of type failed.
 	// 发放失败
-	PointStatusFailed PointStatus = "failed"
+	DistributionStatusFailed DistributionStatus = "failed"
+	// DistributionStatusSuccess is a DistributionStatus of type success.
+	// 发放成功
+	DistributionStatusSuccess DistributionStatus = "success"
 )
 
-var ErrInvalidPointStatus = fmt.Errorf("not a valid PointStatus, try [%s]", strings.Join(_PointStatusNames, ", "))
+var ErrInvalidDistributionStatus = fmt.Errorf("not a valid DistributionStatus, try [%s]", strings.Join(_DistributionStatusNames, ", "))
 
-var _PointStatusNames = []string{
-	string(PointStatusPending),
-	string(PointStatusSuccess),
-	string(PointStatusFailed),
+var _DistributionStatusNames = []string{
+	string(DistributionStatusPending),
+	string(DistributionStatusDistributing),
+	string(DistributionStatusFailed),
+	string(DistributionStatusSuccess),
 }
 
-// PointStatusNames returns a list of possible string values of PointStatus.
-func PointStatusNames() []string {
-	tmp := make([]string, len(_PointStatusNames))
-	copy(tmp, _PointStatusNames)
+// DistributionStatusNames returns a list of possible string values of DistributionStatus.
+func DistributionStatusNames() []string {
+	tmp := make([]string, len(_DistributionStatusNames))
+	copy(tmp, _DistributionStatusNames)
 	return tmp
 }
 
-// PointStatusValues returns a list of the values for PointStatus
-func PointStatusValues() []PointStatus {
-	return []PointStatus{
-		PointStatusPending,
-		PointStatusSuccess,
-		PointStatusFailed,
+// DistributionStatusValues returns a list of the values for DistributionStatus
+func DistributionStatusValues() []DistributionStatus {
+	return []DistributionStatus{
+		DistributionStatusPending,
+		DistributionStatusDistributing,
+		DistributionStatusFailed,
+		DistributionStatusSuccess,
 	}
 }
 
 // String implements the Stringer interface.
-func (x PointStatus) String() string {
+func (x DistributionStatus) String() string {
 	return string(x)
 }
 
 // IsValid provides a quick way to determine if the typed value is
 // part of the allowed enumerated values
-func (x PointStatus) IsValid() bool {
-	_, err := ParsePointStatus(string(x))
+func (x DistributionStatus) IsValid() bool {
+	_, err := ParseDistributionStatus(string(x))
 	return err == nil
 }
 
-var _PointStatusValue = map[string]PointStatus{
-	"pending": PointStatusPending,
-	"success": PointStatusSuccess,
-	"failed":  PointStatusFailed,
+var _DistributionStatusValue = map[string]DistributionStatus{
+	"pending":      DistributionStatusPending,
+	"distributing": DistributionStatusDistributing,
+	"failed":       DistributionStatusFailed,
+	"success":      DistributionStatusSuccess,
 }
 
-// ParsePointStatus attempts to convert a string to a PointStatus.
-func ParsePointStatus(name string) (PointStatus, error) {
-	if x, ok := _PointStatusValue[name]; ok {
+// ParseDistributionStatus attempts to convert a string to a DistributionStatus.
+func ParseDistributionStatus(name string) (DistributionStatus, error) {
+	if x, ok := _DistributionStatusValue[name]; ok {
 		return x, nil
 	}
-	return PointStatus(""), fmt.Errorf("%s is %w", name, ErrInvalidPointStatus)
+	return DistributionStatus(""), fmt.Errorf("%s is %w", name, ErrInvalidDistributionStatus)
 }
 
-// MustParsePointStatus converts a string to a PointStatus, and panics if is not valid.
-func MustParsePointStatus(name string) PointStatus {
-	val, err := ParsePointStatus(name)
+// MustParseDistributionStatus converts a string to a DistributionStatus, and panics if is not valid.
+func MustParseDistributionStatus(name string) DistributionStatus {
+	val, err := ParseDistributionStatus(name)
 	if err != nil {
 		panic(err)
 	}
 	return val
 }
 
-func (x PointStatus) Ptr() *PointStatus {
+func (x DistributionStatus) Ptr() *DistributionStatus {
 	return &x
 }
 
 // MarshalText implements the text marshaller method.
-func (x PointStatus) MarshalText() ([]byte, error) {
+func (x DistributionStatus) MarshalText() ([]byte, error) {
 	return []byte(string(x)), nil
 }
 
 // UnmarshalText implements the text unmarshaller method.
-func (x *PointStatus) UnmarshalText(text []byte) error {
-	tmp, err := ParsePointStatus(string(text))
+func (x *DistributionStatus) UnmarshalText(text []byte) error {
+	tmp, err := ParseDistributionStatus(string(text))
 	if err != nil {
 		return err
 	}
