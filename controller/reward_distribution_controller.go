@@ -109,12 +109,29 @@ func (c *RewardDistributionController) DistributeRewards(event *core.RequestEven
 		return event.InternalServerError("Failed to fetch vote logs", err)
 	}
 
-	// 统计每个用户获得的票数
-	voteStats := make(map[string]int)
+	// 统计每个用户获得的票数和最后一张票的时间
+	type voteInfo struct {
+		count        int
+		lastVoteTime time.Time
+	}
+	voteStats := make(map[string]*voteInfo)
 	for _, record := range records {
 		voteLog := model.NewVoteLog(record)
 		toUserId := voteLog.ToUserId()
-		voteStats[toUserId]++
+		created := voteLog.Created().Time()
+
+		if info, exists := voteStats[toUserId]; exists {
+			info.count++
+			// 更新最后一张票的时间（取最晚的时间）
+			if created.After(info.lastVoteTime) {
+				info.lastVoteTime = created
+			}
+		} else {
+			voteStats[toUserId] = &voteInfo{
+				count:        1,
+				lastVoteTime: created,
+			}
+		}
 	}
 
 	if len(voteStats) == 0 {
@@ -137,21 +154,32 @@ func (c *RewardDistributionController) DistributeRewards(event *core.RequestEven
 		return event.BadRequestError("No reward configuration found for this vote", nil)
 	}
 
-	// 按得票数排序
+	// 按得票数排序，票数相同时按最后一张票的时间排序
 	type userVote struct {
-		userId string
-		votes  int
+		userId       string
+		votes        int
+		lastVoteTime time.Time
 	}
 	var userVotes []userVote
-	for userId, votes := range voteStats {
-		userVotes = append(userVotes, userVote{userId, votes})
+	for userId, info := range voteStats {
+		userVotes = append(userVotes, userVote{
+			userId:       userId,
+			votes:        info.count,
+			lastVoteTime: info.lastVoteTime,
+		})
 	}
 
-	// 排序：得票数从高到低
+	// 排序：得票数从高到低，票数相同时按最后一张票的时间从早到晚
 	for i := 0; i < len(userVotes); i++ {
 		for j := i + 1; j < len(userVotes); j++ {
+			// 如果票数不同，按票数降序
 			if userVotes[j].votes > userVotes[i].votes {
 				userVotes[i], userVotes[j] = userVotes[j], userVotes[i]
+			} else if userVotes[j].votes == userVotes[i].votes {
+				// 票数相同时，按最后一张票的时间升序（越早越靠前）
+				if userVotes[j].lastVoteTime.Before(userVotes[i].lastVoteTime) {
+					userVotes[i], userVotes[j] = userVotes[j], userVotes[i]
+				}
 			}
 		}
 	}
