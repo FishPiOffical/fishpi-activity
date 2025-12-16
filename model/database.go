@@ -166,6 +166,7 @@ const (
 	ActivitiesFieldRewardGroupId            = "rewardGroupId"
 	ActivitiesFieldRewardDistributionStatus = "rewardDistributionStatus"
 	ActivitiesFieldHideInList               = "hideInList"
+	ActivitiesFieldChildActivityIds         = "childActivityIds"
 	ActivitiesFieldCreated                  = "created"
 	ActivitiesFieldUpdated                  = "updated"
 )
@@ -271,6 +272,14 @@ func (activity *Activity) HideInList() bool {
 
 func (activity *Activity) SetHideInList(value bool) {
 	activity.Set(ActivitiesFieldHideInList, value)
+}
+
+func (activity *Activity) ChildActivityIds() []string {
+	return activity.GetStringSlice(ActivitiesFieldChildActivityIds)
+}
+
+func (activity *Activity) SetChildActivityIds(childActivityIds []string) {
+	activity.Set(ActivitiesFieldChildActivityIds, childActivityIds)
 }
 
 func (activity *Activity) Created() types.DateTime {
