@@ -750,6 +750,7 @@ const (
 	RewardsFieldMin           = "min"
 	RewardsFieldMax           = "max"
 	RewardsFieldPoint         = "point"
+	RewardsFieldShieldId      = "shieldId"
 	RewardsFieldMore          = "more"
 )
 
@@ -799,6 +800,15 @@ func (reward *Reward) Point() int {
 func (reward *Reward) SetPoint(value int) {
 	reward.Set(RewardsFieldPoint, value)
 }
+
+func (reward *Reward) ShieldId() string {
+	return reward.GetString(RewardsFieldShieldId)
+}
+
+func (reward *Reward) SetShieldId(value string) {
+	reward.Set(RewardsFieldShieldId, value)
+}
+
 func (reward *Reward) More() string {
 	return reward.GetString(RewardsFieldMore)
 }
