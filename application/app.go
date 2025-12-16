@@ -2,11 +2,12 @@ package application
 
 import (
 	"bless-activity/controller"
-	"bless-activity/service/fishpi"
+	"bless-activity/pkg/fishpi_sdk"
 	"log/slog"
 	"net/http"
 	"os"
 
+	"github.com/FishPiOffical/golang-sdk/sdk"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -27,7 +28,7 @@ import (
 type Application struct {
 	app *pocketbase.PocketBase
 
-	fishPiService *fishpi.Service
+	fishPiSdk *sdk.FishPiSDK
 
 	baseController               *controller.BaseController
 	fishPiController             *controller.FishPiController
@@ -66,10 +67,14 @@ func (application *Application) init(event *core.BootstrapEvent) error {
 	event.App.Logger().Debug("初始化程序")
 
 	var err error
-	if application.fishPiService, err = fishpi.NewService(event.App); err != nil {
-		event.App.Logger().Error("创建fishPi Service失败", slog.Any("err", err))
+	var provider *fishpi_sdk.Provider
+
+	if provider, err = fishpi_sdk.NewProvider(event.App); err != nil {
+		event.App.Logger().Error("创建fishPi SDK Provider失败", slog.Any("err", err))
 		return err
 	}
+
+	application.fishPiSdk = sdk.NewSDK(provider)
 
 	// 问题修复
 	if err = application.fixBug(event); err != nil {
@@ -98,7 +103,7 @@ func (application *Application) registerRoutes(event *core.ServeEvent) error {
 	application.userController = controller.NewUserController(event)
 	application.activityController = controller.NewActivityController(event)
 	application.shieldFiveYearController = controller.NewShieldFiveYearController(event)
-	application.rewardDistributionController = controller.NewRewardDistributionController(event, application.fishPiService)
+	application.rewardDistributionController = controller.NewRewardDistributionController(event, application.fishPiSdk)
 
 	event.Router.GET("/status", func(e *core.RequestEvent) error {
 		return e.String(http.StatusOK, "ok.")

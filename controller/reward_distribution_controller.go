@@ -2,12 +2,14 @@ package controller
 
 import (
 	"bless-activity/model"
-	"bless-activity/service/fishpi"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/FishPiOffical/golang-sdk/sdk"
+	"github.com/FishPiOffical/golang-sdk/types"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -15,14 +17,14 @@ import (
 
 type RewardDistributionController struct {
 	*BaseController
-	fishpiService *fishpi.Service
-	event         *core.ServeEvent
+	fishpiSdk *sdk.FishPiSDK
+	event     *core.ServeEvent
 }
 
-func NewRewardDistributionController(event *core.ServeEvent, fishpiService *fishpi.Service) *RewardDistributionController {
+func NewRewardDistributionController(event *core.ServeEvent, fishpiSdk *sdk.FishPiSDK) *RewardDistributionController {
 	controller := &RewardDistributionController{
 		BaseController: NewBaseController(event),
-		fishpiService:  fishpiService,
+		fishpiSdk:      fishpiSdk,
 		event:          event,
 	}
 
@@ -418,7 +420,11 @@ func (c *RewardDistributionController) distributeToUser(voteId string, userRewar
 
 	// 调用摸鱼派接口发放积分
 	if !c.app.IsDev() {
-		err = c.fishpiService.Distribute(user.Name(), userReward.Point, memo)
+		var resp *types.SimpleResponse
+		resp, err = c.fishpiSdk.PostUserEditPoints(user.Name(), userReward.Point, memo)
+		if err == nil && resp.Code != 0 {
+			err = errors.New(resp.Msg)
+		}
 	}
 
 	if err != nil {
