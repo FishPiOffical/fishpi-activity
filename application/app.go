@@ -76,6 +76,9 @@ func (application *Application) init(event *core.BootstrapEvent) error {
 		return err
 	}
 
+	// 注册钩子
+	application.registerHooks()
+
 	// 注册路由
 	application.app.OnServe().BindFunc(application.registerRoutes)
 

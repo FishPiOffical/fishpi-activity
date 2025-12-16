@@ -1,6 +1,9 @@
 package model
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
@@ -89,6 +92,28 @@ func (user *User) Created() types.DateTime {
 
 func (user *User) Updated() types.DateTime {
 	return user.GetDateTime(UsersFieldUpdated)
+}
+
+func (user *User) RegisteredAt() types.DateTime {
+	oId := user.OId()
+	if oId == "" {
+		return types.DateTime{}
+	}
+
+	// Parse oId as milliseconds timestamp
+	timestamp, err := strconv.ParseInt(oId, 10, 64)
+	if err != nil {
+		return types.DateTime{}
+	}
+
+	// Convert milliseconds to time.Time
+	t := time.UnixMilli(timestamp)
+
+	// Convert to types.DateTime
+
+	dt := types.DateTime{}
+	_ = dt.Scan(t)
+	return dt
 }
 
 const (
@@ -558,6 +583,7 @@ const (
 	VoteLogsFieldFromUserId = "fromUserId"
 	VoteLogsFieldToUserId   = "toUserId"
 	VoteLogsFieldComment    = "comment"
+	VoteLogsFieldValid      = "valid"
 	VoteLogsFieldCreated    = "created"
 	VoteLogsFieldUpdated    = "updated"
 )
@@ -608,6 +634,14 @@ func (voteLog *VoteLog) Comment() string {
 
 func (voteLog *VoteLog) SetComment(value string) {
 	voteLog.Set(VoteLogsFieldComment, value)
+}
+
+func (voteLog *VoteLog) Valid() VoteValid {
+	return MustParseVoteValid(voteLog.GetString(VoteLogsFieldValid))
+}
+
+func (voteLog *VoteLog) SetValid(value VoteValid) {
+	voteLog.Set(VoteLogsFieldValid, value)
 }
 
 func (voteLog *VoteLog) Created() types.DateTime {
