@@ -654,15 +654,16 @@ func (controller *ShieldFiveYearController) GetVoteStats(e *core.RequestEvent) e
 		})
 	}
 
-	// 获取所有投票记录
+	// 获取所有有效投票记录
 	records, err := controller.app.FindRecordsByFilter(
 		model.DbNameVoteLogs,
-		"voteId = {:voteId}",
+		"voteId = {:voteId} && valid = {:valid}",
 		"",
 		0,
 		0,
 		map[string]any{
 			"voteId": voteId,
+			"valid":  model.VoteValidValid,
 		},
 	)
 
@@ -670,7 +671,7 @@ func (controller *ShieldFiveYearController) GetVoteStats(e *core.RequestEvent) e
 		return e.InternalServerError("获取投票统计失败", err)
 	}
 
-	// 统计每个用户获得的票数
+	// 统计每个用户获得的有效票数
 	stats := make(map[string]int)
 	for _, record := range records {
 		voteLog := model.NewVoteLog(record)
@@ -1005,16 +1006,17 @@ func (controller *ShieldFiveYearController) GetVoteQuota(e *core.RequestEvent) e
 	voteModel := model.NewVote(vote)
 	maxVotes := voteModel.GetInt(model.VotesFieldTimes)
 
-	// 统计已使用的票数
+	// 统计已使用的有效票数
 	usedVotes, err := controller.app.FindRecordsByFilter(
 		model.DbNameVoteLogs,
-		"voteId = {:voteId} && fromUserId = {:userId}",
+		"voteId = {:voteId} && fromUserId = {:userId} && valid = {:valid}",
 		"",
 		0,
 		0,
 		map[string]any{
 			"voteId": voteId,
 			"userId": authRecord.Id,
+			"valid":  model.VoteValidValid,
 		},
 	)
 
@@ -1077,7 +1079,7 @@ func (controller *ShieldFiveYearController) GetVoteDetails(e *core.RequestEvent)
 		voteLog := model.NewVoteLog(record)
 		data := record.PublicExport()
 
-		// 获取投票人信息
+		// 获取投票人信息（始终显示真实用户名）
 		if userRecord, err := controller.app.FindRecordById(model.DbNameUsers, voteLog.FromUserId()); err == nil {
 			user := model.NewUser(userRecord)
 			data["user"] = map[string]any{

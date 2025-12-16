@@ -607,11 +607,23 @@
         .voter-list { list-style: none; padding: 0; }
         .voter-item { padding: 15px; border-bottom: 1px solid #eee; }
         .voter-item:last-child { border-bottom: none; }
+        .voter-item.invalid-vote { background-color: #f9f9f9; opacity: 0.7; }
         .voter-header { display: flex; align-items: center; margin-bottom: 8px; }
         .voter-avatar { width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; }
         .voter-info { display: flex; flex-direction: column; flex: 1; }
+        .voter-name-line { display: flex; align-items: center; gap: 6px; }
         .voter-name { color: #333; font-weight: 600; }
         .voter-time { color: #999; font-size: 0.75rem; margin-top: 2px; }
+        .recent-user-badge {
+            display: inline-block;
+            background-color: #ff9800;
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: normal;
+            white-space: nowrap;
+        }
         .voter-comment {
             background: rgba(214, 162, 173, 0.08);
             padding: 10px;
@@ -3046,19 +3058,29 @@
                         return;
                     }
 
+                    // 统计有效票数
+                    const validVoters = voters.filter(voter => voter.valid === 'valid');
+                    const invalidVoters = voters.filter(voter => voter.valid === 'invalid');
+
                     const votersHtml = voters.map(voter => {
                         const time = new Date(voter.created).toLocaleString('zh-CN');
                         const comment = voter.comment ? escapeHtml(voter.comment) : '';
                         const commentHtml = comment ? `<div class="voter-comment">${comment}</div>` : '';
+                        const isInvalid = voter.valid === 'invalid';
+                        const invalidClass = isInvalid ? ' invalid-vote' : '';
+                        const recentUserBadge = isInvalid ? '<span class="recent-user-badge" title="注册未满3个月，此票无效">近期注册用户</span>' : '';
 
                         return `
-                            <div class="voter-item">
+                            <div class="voter-item${invalidClass}">
                                 <div class="voter-header">
                                     <img src="${escapeHtml(voter.user?.avatar || '')}"
                                          alt="avatar" class="voter-avatar"
                                          onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2230%22 height=%2230%22><rect width=%2230%22 height=%2230%22 fill=%22%23ddd%22/></svg>'">
                                     <div class="voter-info">
-                                        <span class="voter-name">${escapeHtml(voter.user?.nickname || voter.user?.name || '匿名')}</span>
+                                        <div class="voter-name-line">
+                                            <span class="voter-name">${escapeHtml(voter.user?.nickname || voter.user?.name || '匿名')}</span>
+                                            ${recentUserBadge}
+                                        </div>
                                         <span class="voter-time">${time}</span>
                                     </div>
                                 </div>
@@ -3067,8 +3089,12 @@
                         `;
                     }).join('');
 
+                    const voteCountHtml = invalidVoters.length > 0
+                        ? `<p style="margin-bottom: 15px;">共 ${voters.length} 人投票（正式票 ${validVoters.length} 张，近期票 ${invalidVoters.length} 张）</p>`
+                        : `<p style="margin-bottom: 15px;">共 ${validVoters.length} 人投票</p>`;
+
                     modalContent.innerHTML = `
-                        <p style="margin-bottom: 15px;">共 ${voters.length} 人投票</p>
+                        ${voteCountHtml}
                         <div class="voter-list">${votersHtml}</div>
                     `;
                 } else {

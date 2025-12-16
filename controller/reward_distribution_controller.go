@@ -93,15 +93,16 @@ func (c *RewardDistributionController) DistributeRewards(event *core.RequestEven
 
 	logger = logger.With(slog.String("voteId", voteId), slog.String("rewardGroupId", rewardGroupId))
 
-	// 从VoteLog中统计得票数
+	// 从VoteLog中统计得票数 (只统计有效票)
 	records, err := c.app.FindRecordsByFilter(
 		model.DbNameVoteLogs,
-		"voteId = {:voteId}",
+		"voteId = {:voteId} && valid = {:valid}",
 		"",
 		0,
 		0,
 		map[string]any{
 			"voteId": voteId,
+			"valid":  model.VoteValidValid,
 		},
 	)
 	if err != nil {
@@ -109,7 +110,7 @@ func (c *RewardDistributionController) DistributeRewards(event *core.RequestEven
 		return event.InternalServerError("Failed to fetch vote logs", err)
 	}
 
-	// 统计每个用户获得的票数和最后一张票的时间
+	// 统计每个用户获得的有效票数和最后一张票的时间
 	type voteInfo struct {
 		count        int
 		lastVoteTime time.Time
