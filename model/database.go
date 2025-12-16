@@ -160,6 +160,7 @@ const (
 	ActivitiesFieldArticleUrl               = "articleUrl"
 	ActivitiesFieldExternalUrl              = "externalUrl"
 	ActivitiesFieldDesc                     = "desc"
+	ActivitiesFieldTag                      = "tag"
 	ActivitiesFieldStart                    = "start"
 	ActivitiesFieldEnd                      = "end"
 	ActivitiesFieldVoteId                   = "voteId"
@@ -224,6 +225,14 @@ func (activity *Activity) Desc() string {
 
 func (activity *Activity) SetDesc(value string) {
 	activity.Set(ActivitiesFieldDesc, value)
+}
+
+func (activity *Activity) Tag() string {
+	return activity.GetString(ActivitiesFieldTag)
+}
+
+func (activity *Activity) SetTag(value string) {
+	activity.Set(ActivitiesFieldTag, value)
 }
 
 func (activity *Activity) Start() types.DateTime {
