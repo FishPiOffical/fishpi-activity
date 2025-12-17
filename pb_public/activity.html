@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动详情</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Umami Analytics -->
+    <script defer src="https://umami.aweoo.com/script.js" data-website-id="026abece-76c0-4781-8422-5e0b70b5a3b3"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans" x-data="activityPage()" x-cloak>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="/" class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <span>🐟</span> FishPi Activity
+            </a>
+            <div class="space-x-4">
+                <a href="/" class="text-gray-600 hover:text-gray-900">首页</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8 space-y-8 max-w-6xl">
+
+        <!-- Loading State -->
+        <div x-show="loading" class="flex justify-center items-center py-20">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+
+        <!-- Error State -->
+        <div x-show="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow" role="alert">
+            <p class="font-bold">错误</p>
+            <p x-text="error"></p>
+            <a href="/" class="mt-2 inline-block text-sm underline">返回首页</a>
+        </div>
+
+        <div x-show="!loading && !error" class="space-y-8">
+
+            <!-- Activity Introduction -->
+            <section class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="p-6 md:p-8">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <h1 class="text-3xl md:text-4xl font-bold text-gray-900" x-text="activity.name"></h1>
+                        <div class="flex gap-2">
+                             <span class="px-3 py-1 rounded-full text-sm font-medium"
+                                   :class="getStatusClass(activity)"
+                                   x-text="getStatusText(activity)">
+                             </span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-gray-600 bg-gray-50 p-4 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <span class="font-semibold">开始时间:</span>
+                            <span x-text="formatDate(activity.start)"></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span class="font-semibold">结束时间:</span>
+                            <span x-text="formatDate(activity.end)"></span>
+                        </div>
+                    </div>
+
+                    <div class="prose max-w-none text-gray-700 leading-relaxed" x-html="activity.desc"></div>
+
+                    <div class="mt-6 pt-6 border-t border-gray-100" x-show="activity.articleUrl">
+                        <a :href="activity.articleUrl" target="_blank" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                            <span>📖 查看活动推文</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reward Information -->
+            <section class="bg-white rounded-xl shadow-sm p-6 md:p-8" x-show="rewards.length > 0">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <span>🏆</span> 奖励信息
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <template x-for="reward in rewards" :key="reward.id">
+                        <div class="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow bg-gradient-to-br from-white to-gray-50">
+                            <h3 class="font-bold text-lg text-gray-800 mb-2" x-text="reward.name"></h3>
+                            <div class="space-y-2 text-sm">
+                                <p class="flex justify-between">
+                                    <span class="text-gray-500">积分奖励</span>
+                                    <span class="font-bold text-orange-500" x-text="reward.point"></span>
+                                </p>
+                                <p class="flex justify-between" x-show="reward.min || reward.max">
+                                    <span class="text-gray-500">排名要求</span>
+                                    <span class="font-medium text-gray-700">
+                                        <span x-text="reward.min"></span> - <span x-text="reward.max"></span>
+                                    </span>
+                                </p>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-4 pt-3 border-t border-gray-200" x-show="reward.more" x-text="reward.more"></p>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- Article List -->
+            <section class="bg-white rounded-xl shadow-sm p-6 md:p-8">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold flex items-center gap-2">
+                        <span>📝</span> 文章列表
+                        <span class="text-sm font-normal text-gray-500 ml-2" x-text="'(' + articles.length + ')'"></span>
+                    </h2>
+                    <div class="flex items-center gap-3 bg-gray-50 p-2 rounded-lg">
+                        <span class="text-sm text-gray-500">排序:</span>
+                        <select x-model="sortBy" @change="sortArticles()" class="bg-white border-gray-300 text-sm rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="createdAt">最新发布</option>
+                            <option value="viewCount">浏览量</option>
+                            <option value="goodCnt">点赞数</option>
+                            <option value="commentCount">评论数</option>
+                            <option value="collectCnt">收藏数</option>
+                        </select>
+                        <button @click="toggleSortOrder()" class="p-2 hover:bg-gray-200 rounded-md transition-colors" :title="sortDesc ? '降序' : '升序'">
+                            <span x-text="sortDesc ? '↓' : '↑'" class="font-bold text-gray-700"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">标题</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作者</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600" @click="setSort('viewCount')">浏览</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600" @click="setSort('goodCnt')">点赞</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600" @click="setSort('commentCount')">评论</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <template x-for="article in articles" :key="article.id">
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4">
+                                        <a :href="'https://fishpi.cn/article/' + article.oId" target="_blank" class="text-gray-900 font-medium hover:text-blue-600 hover:underline block truncate max-w-md" x-text="article.title"></a>
+                                        <div class="text-xs text-gray-500 mt-1" x-text="formatDate(article.createdAt || article.created)"></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                        <span x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.viewCount"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.goodCnt"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.commentCount"></td>
+                                </tr>
+                            </template>
+                            <tr x-show="articles.length === 0">
+                                <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                                    暂无文章数据
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- History Review -->
+            <section class="bg-white rounded-xl shadow-sm p-6 md:p-8" x-show="history.length > 0">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <span>📜</span> 历史回顾
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                     <template x-for="item in history" :key="item.id">
+                        <a :href="item.articleUrl" target="_blank" class="group block bg-gray-50 rounded-lg p-4 hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-2xl font-bold text-gray-300 group-hover:text-blue-300" x-text="item.year"></span>
+                                <svg class="w-5 h-5 text-gray-300 group-hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </div>
+                            <div class="font-medium text-gray-800 group-hover:text-blue-700" x-text="item.keyword"></div>
+                        </a>
+                    </template>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        function activityPage() {
+            return {
+                loading: true,
+                error: null,
+                activity: {},
+                rewards: [],
+                articles: [],
+                history: [],
+                sortBy: 'created',
+                sortDesc: true,
+
+                async init() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const id = urlParams.get('id');
+
+                    if (!id) {
+                        this.error = '未指定活动ID';
+                        this.loading = false;
+                        return;
+                    }
+
+                    try {
+                        // Fetch Activity
+                        const activityRes = await fetch(`/api/collections/activities/records/${id}`);
+                        if (!activityRes.ok) throw new Error('获取活动信息失败');
+                        this.activity = await activityRes.json();
+
+                        // Fetch Rewards
+                        if (this.activity.rewardGroupId) {
+                            const rewardsRes = await fetch(`/api/collections/rewards/records?filter=(rewardGroupId='${this.activity.rewardGroupId}')&sort=min`);
+                            if (rewardsRes.ok) {
+                                const rewardsData = await rewardsRes.json();
+                                this.rewards = rewardsData.items;
+                            }
+                        }
+
+                        // Fetch Articles
+                        // Try to expand userId to get user details
+                        const articlesRes = await fetch(`/api/collections/relArticles/records?filter=(activityId='${id}')&sort=-created&perPage=500&expand=userId`);
+                        if (articlesRes.ok) {
+                            const articlesData = await articlesRes.json();
+                            this.articles = articlesData.items;
+                            // Initial sort is already done by API (-created), but we set local state to match
+                            this.sortBy = 'created';
+                            this.sortDesc = true;
+                        }
+
+                        // Fetch History
+                        const historyRes = await fetch(`/api/collections/yearlyHistories/records?sort=-year`);
+                        if (historyRes.ok) {
+                            const historyData = await historyRes.json();
+                            this.history = historyData.items;
+                        }
+
+                    } catch (e) {
+                        console.error(e);
+                        this.error = e.message || '加载数据时发生错误';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                formatDate(dateStr) {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    return date.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                },
+
+                getStatusText(activity) {
+                    const now = new Date();
+                    const start = new Date(activity.start);
+                    const end = new Date(activity.end);
+
+                    if (now < start) return '即将开始';
+                    if (now > end) return '已结束';
+                    return '进行中';
+                },
+
+                getStatusClass(activity) {
+                    const now = new Date();
+                    const start = new Date(activity.start);
+                    const end = new Date(activity.end);
+
+                    if (now < start) return 'bg-blue-100 text-blue-800';
+                    if (now > end) return 'bg-gray-100 text-gray-800';
+                    return 'bg-green-100 text-green-800';
+                },
+
+                setSort(field) {
+                    if (this.sortBy === field) {
+                        this.toggleSortOrder();
+                    } else {
+                        this.sortBy = field;
+                        this.sortDesc = true;
+                        this.sortArticles();
+                    }
+                },
+
+                toggleSortOrder() {
+                    this.sortDesc = !this.sortDesc;
+                    this.sortArticles();
+                },
+
+                sortArticles() {
+                    this.articles.sort((a, b) => {
+                        let valA = a[this.sortBy];
+                        let valB = b[this.sortBy];
+
+                        // Handle numeric fields
+                        if (['viewCount', 'goodCnt', 'commentCount', 'collectCnt', 'thankCnt'].includes(this.sortBy)) {
+                            valA = Number(valA) || 0;
+                            valB = Number(valB) || 0;
+                        } else if (this.sortBy === 'created') {
+                             valA = new Date(valA || 0).getTime();
+                             valB = new Date(valB || 0).getTime();
+                        }
+
+                        if (valA < valB) return this.sortDesc ? 1 : -1;
+                        if (valA > valB) return this.sortDesc ? -1 : 1;
+                        return 0;
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
