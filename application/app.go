@@ -3,6 +3,7 @@ package application
 import (
 	"bless-activity/controller"
 	"bless-activity/pkg/fishpi_sdk"
+	"bless-activity/service/fetch_article"
 	"log/slog"
 	"net/http"
 	"os"
@@ -29,6 +30,8 @@ type Application struct {
 	app *pocketbase.PocketBase
 
 	fishPiSdk *sdk.FishPiSDK
+
+	fetchArticleService *fetch_article.Service
 
 	baseController               *controller.BaseController
 	fishPiController             *controller.FishPiController
@@ -75,6 +78,12 @@ func (application *Application) init(event *core.BootstrapEvent) error {
 	}
 
 	application.fishPiSdk = sdk.NewSDK(provider)
+
+	application.fetchArticleService = fetch_article.NewService(application.app, application.fishPiSdk)
+	if err = application.fetchArticleService.Run(); err != nil {
+		event.App.Logger().Error("启动文章爬取服务失败", slog.Any("err", err))
+		return err
+	}
 
 	// 问题修复
 	if err = application.fixBug(event); err != nil {
