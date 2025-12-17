@@ -24,7 +24,8 @@
     <nav class="bg-white shadow-md sticky top-0 z-50" x-show="!isIframe">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <a href="/" class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <span>🐟</span> FishPi Activity
+                <span>🐟</span>
+                <span x-text="activity.name || '活动详情'"></span>
             </a>
             <div class="space-x-4 hidden md:flex">
                 <a href="#intro" class="text-gray-600 hover:text-gray-900">活动介绍</a>
