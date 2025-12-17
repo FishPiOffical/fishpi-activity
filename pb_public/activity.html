@@ -14,6 +14,12 @@
 </head>
 <body class="bg-gray-100 min-h-screen font-sans" x-data="activityPage()" x-cloak>
 
+    <!-- View Full Page Button (Iframe Mode) -->
+    <a x-show="isIframe" :href="window.location.pathname + '?id=' + new URLSearchParams(window.location.search).get('id')" target="_blank" class="fixed top-2 right-2 bg-white text-gray-600 hover:text-blue-600 px-3 py-1.5 rounded-full shadow-md text-xs font-medium z-50 flex items-center gap-1 border border-gray-200 transition-colors">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+        查看完整页面
+    </a>
+
     <!-- Navigation -->
     <nav class="bg-white shadow-md sticky top-0 z-50" x-show="!isIframe">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -128,7 +134,8 @@
                     </div>
                 </div>
 
-                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <!-- Table View (Full Mode) -->
+                <div x-show="!isIframe" class="overflow-x-auto rounded-lg border border-gray-200">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
@@ -147,7 +154,7 @@
                                         <div class="text-xs text-gray-500 mt-1" x-text="formatDate(article.createdAt || article.created)"></div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        <span x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></span>
+                                        <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.username || 'admin')" target="_blank" class="hover:text-blue-600 hover:underline" x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></a>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.viewCount"></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.goodCnt"></td>
@@ -161,6 +168,31 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- List View (Iframe Mode) -->
+                <div x-show="isIframe" class="space-y-3">
+                    <template x-for="article in articles" :key="article.id">
+                        <div class="bg-white p-3 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+                            <div class="flex justify-between items-start gap-2">
+                                <a :href="'https://fishpi.cn/article/' + article.oId" target="_blank" class="text-gray-900 font-medium hover:text-blue-600 line-clamp-2 text-sm flex-1" x-text="article.title"></a>
+                                <span class="text-xs text-gray-400 whitespace-nowrap" x-text="formatDate(article.createdAt || article.created).split(' ')[0]"></span>
+                            </div>
+                            <div class="mt-2 flex justify-between items-center text-xs text-gray-500">
+                                <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.username || 'admin')" target="_blank" class="hover:text-blue-600 flex items-center gap-1">
+                                    <span x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></span>
+                                </a>
+                                <div class="flex gap-3">
+                                    <span class="flex items-center gap-0.5" title="浏览"><span class="text-[10px]">👁️</span> <span x-text="article.viewCount"></span></span>
+                                    <span class="flex items-center gap-0.5" title="点赞"><span class="text-[10px]">👍</span> <span x-text="article.goodCnt"></span></span>
+                                    <span class="flex items-center gap-0.5" title="评论"><span class="text-[10px]">💬</span> <span x-text="article.commentCount"></span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="articles.length === 0" class="text-center py-8 text-gray-500 text-sm">
+                        暂无文章数据
+                    </div>
                 </div>
             </section>
 
@@ -193,7 +225,7 @@
                 rewards: [],
                 articles: [],
                 history: [],
-                sortBy: 'created',
+                sortBy: 'createdAt',
                 sortDesc: true,
                 isIframe: new URLSearchParams(window.location.search).get('type') === 'iframe' || window.self !== window.top,
 
@@ -224,12 +256,12 @@
 
                         // Fetch Articles
                         // Try to expand userId to get user details
-                        const articlesRes = await fetch(`/api/collections/relArticles/records?filter=(activityId='${id}')&sort=-created&perPage=500&expand=userId`);
+                        const articlesRes = await fetch(`/api/collections/relArticles/records?filter=(activityId='${id}')&sort=-createdAt&perPage=500&expand=userId`);
                         if (articlesRes.ok) {
                             const articlesData = await articlesRes.json();
                             this.articles = articlesData.items;
-                            // Initial sort is already done by API (-created), but we set local state to match
-                            this.sortBy = 'created';
+                            // Initial sort is already done by API (-createdAt), but we set local state to match
+                            this.sortBy = 'createdAt';
                             this.sortDesc = true;
                         }
 
@@ -300,7 +332,7 @@
                         if (['viewCount', 'goodCnt', 'commentCount', 'collectCnt', 'thankCnt'].includes(this.sortBy)) {
                             valA = Number(valA) || 0;
                             valB = Number(valB) || 0;
-                        } else if (this.sortBy === 'created') {
+                        } else if (this.sortBy === 'createdAt') {
                              valA = new Date(valA || 0).getTime();
                              valB = new Date(valB || 0).getTime();
                         }
