@@ -154,7 +154,7 @@
                                         <div class="text-xs text-gray-500 mt-1" x-text="formatDate(article.createdAt || article.created)"></div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.username || 'admin')" target="_blank" class="hover:text-blue-600 hover:underline" x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></a>
+                                        <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.name || 'admin')" target="_blank" class="hover:text-blue-600 hover:underline" x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></a>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.viewCount"></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.goodCnt"></td>
@@ -179,7 +179,7 @@
                                 <span class="text-xs text-gray-400 whitespace-nowrap" x-text="formatDate(article.createdAt || article.created).split(' ')[0]"></span>
                             </div>
                             <div class="mt-2 flex justify-between items-center text-xs text-gray-500">
-                                <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.username || 'admin')" target="_blank" class="hover:text-blue-600 flex items-center gap-1">
+                                <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.name || 'admin')" target="_blank" class="hover:text-blue-600 flex items-center gap-1">
                                     <span x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></span>
                                 </a>
                                 <div class="flex gap-3">
