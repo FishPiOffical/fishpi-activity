@@ -15,7 +15,7 @@
 <body class="bg-gray-100 min-h-screen font-sans" x-data="activityPage()" x-cloak>
 
     <!-- Navigation -->
-    <nav class="bg-white shadow-md sticky top-0 z-50">
+    <nav class="bg-white shadow-md sticky top-0 z-50" x-show="!isIframe">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <a href="/" class="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <span>🐟</span> FishPi Activity
@@ -43,7 +43,7 @@
         <div x-show="!loading && !error" class="space-y-8">
 
             <!-- Activity Introduction -->
-            <section class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <section class="bg-white rounded-xl shadow-sm overflow-hidden" x-show="!isIframe">
                 <div class="p-6 md:p-8">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <h1 class="text-3xl md:text-4xl font-bold text-gray-900" x-text="activity.name"></h1>
@@ -195,6 +195,7 @@
                 history: [],
                 sortBy: 'created',
                 sortDesc: true,
+                isIframe: new URLSearchParams(window.location.search).get('type') === 'iframe' || window.self !== window.top,
 
                 async init() {
                     const urlParams = new URLSearchParams(window.location.search);
@@ -213,7 +214,7 @@
                         this.activity = await activityRes.json();
 
                         // Fetch Rewards
-                        if (this.activity.rewardGroupId) {
+                        if (!this.isIframe && this.activity.rewardGroupId) {
                             const rewardsRes = await fetch(`/api/collections/rewards/records?filter=(rewardGroupId='${this.activity.rewardGroupId}')&sort=min`);
                             if (rewardsRes.ok) {
                                 const rewardsData = await rewardsRes.json();
@@ -233,10 +234,12 @@
                         }
 
                         // Fetch History
-                        const historyRes = await fetch(`/api/collections/yearlyHistories/records?sort=-year`);
-                        if (historyRes.ok) {
-                            const historyData = await historyRes.json();
-                            this.history = historyData.items;
+                        if (!this.isIframe) {
+                            const historyRes = await fetch(`/api/collections/yearlyHistories/records?sort=-year`);
+                            if (historyRes.ok) {
+                                const historyData = await historyRes.json();
+                                this.history = historyData.items;
+                            }
                         }
 
                     } catch (e) {
