@@ -673,11 +673,14 @@ func (voteLog *VoteLog) Updated() types.DateTime {
 
 const (
 	DbNameYearlyHistories               = "yearlyHistories"
-	YearlyHistoriesFieldYear            = "year"
-	YearlyHistoriesFieldKeyword         = "keyword"
-	YearlyHistoriesFieldArticleShieldId = "articleShieldId"
-	YearlyHistoriesFieldAgeShieldId     = "ageShieldId"
-	YearlyHistoriesFieldArticleUrl      = "articleUrl"
+	YearlyHistoriesFieldYear            = "year"            // 年份
+	YearlyHistoriesFieldKeyword         = "keyword"         // 关键词
+	YearlyHistoriesFieldArticleShieldId = "articleShieldId" // 年终征文徽章
+	YearlyHistoriesFieldAgeShieldId     = "ageShieldId"     // 年份徽章
+	YearlyHistoriesFieldArticleUrl      = "articleUrl"      // 推文链接
+	YearlyHistoriesFieldPostArticleUrl  = "postArticleUrl"  // 投稿文章汇总链接
+	YearlyHistoriesFieldStart           = "start"           // 活动开始时间
+	YearlyHistoriesFieldEnd             = "end"             // 活动结束时间
 )
 
 type YearlyHistory struct {
@@ -713,6 +716,18 @@ func (yearlyHistory *YearlyHistory) AgeShieldId() string {
 
 func (yearlyHistory *YearlyHistory) ArticleUrl() string {
 	return yearlyHistory.GetString(YearlyHistoriesFieldArticleUrl)
+}
+
+func (yearlyHistory *YearlyHistory) PostArticleUrl() string {
+	return yearlyHistory.GetString(YearlyHistoriesFieldPostArticleUrl)
+}
+
+func (yearlyHistory *YearlyHistory) Start() types.DateTime {
+	return yearlyHistory.GetDateTime(YearlyHistoriesFieldStart)
+}
+
+func (yearlyHistory *YearlyHistory) End() types.DateTime {
+	return yearlyHistory.GetDateTime(YearlyHistoriesFieldEnd)
 }
 
 const (
