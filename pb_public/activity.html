@@ -150,6 +150,7 @@
                             <option value="goodCnt">点赞数</option>
                             <option value="commentCount">评论数</option>
                             <option value="collectCnt">收藏数</option>
+                            <option value="thankCnt">感谢数</option>
                         </select>
                         <button @click="toggleSortOrder()" class="p-2 hover:bg-gray-200 rounded-md transition-colors" :title="sortDesc ? '降序' : '升序'">
                             <span x-text="sortDesc ? '↓' : '↑'" class="font-bold text-gray-700"></span>
@@ -166,6 +167,8 @@
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作者</th>
                                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600" @click="setSort('viewCount')">浏览</th>
                                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600" @click="setSort('goodCnt')">点赞</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600" @click="setSort('thankCnt')">感谢</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600" @click="setSort('collectCnt')">收藏</th>
                                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600" @click="setSort('commentCount')">评论</th>
                             </tr>
                         </thead>
@@ -181,6 +184,8 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.viewCount"></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.goodCnt"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.thankCnt"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.collectCnt"></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.commentCount"></td>
                                 </tr>
                             </template>
@@ -208,6 +213,8 @@
                                 <div class="flex gap-3">
                                     <span class="flex items-center gap-0.5" title="浏览"><span class="text-[10px]">👁️</span> <span x-text="article.viewCount"></span></span>
                                     <span class="flex items-center gap-0.5" title="点赞"><span class="text-[10px]">👍</span> <span x-text="article.goodCnt"></span></span>
+                                    <span class="flex items-center gap-0.5" title="感谢"><span class="text-[10px]">💬</span> <span x-text="article.thankCnt"></span></span>
+                                    <span class="flex items-center gap-0.5" title="收藏"><span class="text-[10px]">💬</span> <span x-text="article.collectCnt"></span></span>
                                     <span class="flex items-center gap-0.5" title="评论"><span class="text-[10px]">💬</span> <span x-text="article.commentCount"></span></span>
                                 </div>
                             </div>
