@@ -15,7 +15,7 @@
 <body class="bg-gray-100 min-h-screen font-sans" x-data="activityPage()" x-cloak>
 
     <!-- View Full Page Button (Iframe Mode) -->
-    <a x-show="isIframe" :href="fullPageUrl" target="_blank" class="fixed top-2 right-2 bg-white text-gray-600 hover:text-blue-600 px-3 py-1.5 rounded-full shadow-md text-xs font-medium z-50 flex items-center gap-1 border border-gray-200 transition-colors">
+    <a x-show="isIframe" title="鼠标中键点击｜鼠标右键新标签页打开" :href="fullPageUrl" target="_blank" class="fixed top-2 right-2 bg-white text-gray-600 hover:text-blue-600 px-3 py-1.5 rounded-full shadow-md text-xs font-medium z-50 flex items-center gap-1 border border-gray-200 transition-colors">
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
         查看完整页面
     </a>
@@ -213,8 +213,8 @@
                                 <div class="flex gap-3">
                                     <span class="flex items-center gap-0.5" title="浏览"><span class="text-[10px]">👁️</span> <span x-text="article.viewCount"></span></span>
                                     <span class="flex items-center gap-0.5" title="点赞"><span class="text-[10px]">👍</span> <span x-text="article.goodCnt"></span></span>
-                                    <span class="flex items-center gap-0.5" title="感谢"><span class="text-[10px]">💬</span> <span x-text="article.thankCnt"></span></span>
-                                    <span class="flex items-center gap-0.5" title="收藏"><span class="text-[10px]">💬</span> <span x-text="article.collectCnt"></span></span>
+                                    <span class="flex items-center gap-0.5" title="感谢"><span class="text-[10px]">🙏</span> <span x-text="article.thankCnt"></span></span>
+                                    <span class="flex items-center gap-0.5" title="收藏"><span class="text-[10px]">✨</span> <span x-text="article.collectCnt"></span></span>
                                     <span class="flex items-center gap-0.5" title="评论"><span class="text-[10px]">💬</span> <span x-text="article.commentCount"></span></span>
                                 </div>
                             </div>
