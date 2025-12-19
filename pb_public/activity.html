@@ -222,7 +222,13 @@
                                         <div class="text-xs text-gray-500 mt-1" x-text="formatDate(article.createdAt || article.created)"></div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.name || 'admin')" target="_blank" class="hover:text-blue-600 hover:underline" x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></a>
+                                        <!-- avatar + name -->
+                                        <div class="flex items-center gap-3">
+                                            <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.name || 'admin')" target="_blank" class="flex items-center gap-2 hover:underline" title="打开用户详情">
+                                                <img :src="getUserAvatar(article.expand?.userId)" alt="头像" class="h-8 w-8 rounded-full object-cover" referrerpolicy="no-referrer">
+                                                <span class="hover:text-blue-600" x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></span>
+                                            </a>
+                                        </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.viewCount"></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-mono" x-text="article.goodCnt"></td>
@@ -249,7 +255,8 @@
                                 <span class="text-xs text-gray-400 whitespace-nowrap" x-text="formatDate(article.createdAt || article.created).split(' ')[0]"></span>
                             </div>
                             <div class="mt-2 flex justify-between items-center text-xs text-gray-500">
-                                <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.name || 'admin')" target="_blank" class="hover:text-blue-600 flex items-center gap-1">
+                                <a :href="'https://fishpi.cn/member/' + (article.expand?.userId?.name || 'admin')" target="_blank" class="hover:text-blue-600 flex items-center gap-2">
+                                    <img :src="getUserAvatar(article.expand?.userId)" alt="头像" class="h-6 w-6 rounded-full object-cover" referrerpolicy="no-referrer">
                                     <span x-text="article.expand?.userId?.nickname || article.expand?.userId?.name || '未知用户'"></span>
                                 </a>
                                 <div class="flex gap-3">
@@ -414,57 +421,82 @@
                     return shieldUrl;
                 },
 
-                getStatusText(activity) {
-                    const now = new Date();
-                    const start = new Date(activity.start);
-                    const end = new Date(activity.end);
+                // Resolve user avatar with safe fallbacks. Accepts the expanded user object.
+                getUserAvatar(user) {
+                    // If user not provided, return a small anonymous placeholder (data URI SVG)
+                    if (!user) return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="%23E5E7EB" width="100%" height="100%" rx="8"/><text x="50%" y="50%" text-anchor="middle" dy=".35em" fill="%23999" font-family="Helvetica,Arial,sans-serif" font-size="22">?</text></svg>';
 
-                    if (now < start) return '即将开始';
-                    if (now > end) return '已结束';
-                    return '进行中';
-                },
-
-                getStatusClass(activity) {
-                    const now = new Date();
-                    const start = new Date(activity.start);
-                    const end = new Date(activity.end);
-
-                    if (now < start) return 'bg-blue-100 text-blue-800';
-                    if (now > end) return 'bg-gray-100 text-gray-800';
-                    return 'bg-green-100 text-green-800';
-                },
-
-                setSort(field) {
-                    if (this.sortBy === field) {
-                        this.sortDesc = !this.sortDesc;
-                    } else {
-                        this.sortBy = field;
-                        this.sortDesc = false;
+                    // Common field names: avatar, avatarUrl, face, avatar_url
+                    const candidates = [user.avatar, user.avatarUrl, user.face, user.avatar_url, user.avatarUrlPath];
+                    for (const c of candidates) {
+                        if (!c) continue;
+                        // If already a full URL
+                        if (typeof c === 'string' && (c.startsWith('http://') || c.startsWith('https://'))) return c;
+                        // If starts with a slash, make it absolute
+                        if (typeof c === 'string' && c.startsWith('/')) return window.location.origin + c;
+                        // Otherwise return as-is (may be a relative path)
+                        if (typeof c === 'string') return c;
                     }
-                    this.sortArticles();
+
+                    // Fallback to an initials avatar (SVG with nickname initial)
+                    const name = (user.nickname || user.name || 'U').trim();
+                    const initial = encodeURIComponent((name[0] || 'U').toUpperCase());
+                    const bg = '%23D1FAE5';
+                    const fg = '%23333';
+                    return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='100%' height='100%' fill='${bg}' rx='8'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='28' fill='${fg}'>${initial}</text></svg>`;
                 },
 
-                toggleSortOrder() {
-                    this.sortDesc = !this.sortDesc;
-                    this.sortArticles();
-                },
+                 getStatusText(activity) {
+                     const now = new Date();
+                     const start = new Date(activity.start);
+                     const end = new Date(activity.end);
 
-                sortArticles() {
-                    const key = this.sortBy;
-                    const desc = this.sortDesc ? -1 : 1;
-                    this.articles.sort((a, b) => {
-                        if (a[key] < b[key]) return -desc;
-                        if (a[key] > b[key]) return desc;
-                        return 0;
-                    });
-                },
-            }
-        }
+                     if (now < start) return '即将开始';
+                     if (now > end) return '已结束';
+                     return '进行中';
+                 },
 
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('activityPage', activityPage);
-        });
-    </script>
+                 getStatusClass(activity) {
+                     const now = new Date();
+                     const start = new Date(activity.start);
+                     const end = new Date(activity.end);
+
+                     if (now < start) return 'bg-blue-100 text-blue-800';
+                     if (now > end) return 'bg-gray-100 text-gray-800';
+                     return 'bg-green-100 text-green-800';
+                 },
+
+                 setSort(field) {
+                     if (this.sortBy === field) {
+                         this.sortDesc = !this.sortDesc;
+                     } else {
+                         this.sortBy = field;
+                         this.sortDesc = false;
+                     }
+                     this.sortArticles();
+                 },
+
+                 toggleSortOrder() {
+                     this.sortDesc = !this.sortDesc;
+                     this.sortArticles();
+                 },
+
+                 sortArticles() {
+                     const key = this.sortBy;
+                     const desc = this.sortDesc ? -1 : 1;
+                     this.articles.sort((a, b) => {
+                         if (a[key] < b[key]) return -desc;
+                         if (a[key] > b[key]) return desc;
+                         return 0;
+                     });
+                 },
+             }
+         }
+
+         document.addEventListener('alpine:init', () => {
+             Alpine.data('activityPage', activityPage);
+         });
+     </script>
 </body>
 </html>
 
