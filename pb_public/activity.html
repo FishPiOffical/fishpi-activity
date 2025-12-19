@@ -10,14 +10,56 @@
     <script defer src="https://umami.aweoo.com/script.js" data-website-id="026abece-76c0-4781-8422-5e0b70b5a3b3"></script>
     <style>
         [x-cloak] { display: none !important; }
+        /* Immediate tooltip for the full page button */
+        .fullpage-btn { position: fixed; top: 0.5rem; right: 0.5rem; z-index: 60; }
+        .fullpage-btn .fp-tooltip {
+            position: absolute;
+            right: calc(100% + 0.5rem);
+            top: 50%;
+            transform: translateY(-50%) translateX(6px) scale(.98);
+            background: rgba(0,0,0,0.85);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .08s ease, transform .12s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .fullpage-btn .fp-tooltip::after{
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0; height: 0;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            border-left: 6px solid rgba(0,0,0,0.85);
+        }
+        .fullpage-btn:hover .fp-tooltip,
+        .fullpage-btn:focus .fp-tooltip,
+        .fullpage-btn:focus-within .fp-tooltip {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0) scale(1);
+            pointer-events: auto;
+        }
+        /* Make sure on small screens tooltip doesn't overflow off-screen */
+        @media (max-width: 640px) {
+            .fullpage-btn .fp-tooltip { display: none; }
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans" x-data="activityPage()" x-cloak>
 
     <!-- View Full Page Button (Iframe Mode) -->
-    <a x-show="isIframe" title="鼠标中键点击｜鼠标右键新标签页打开" :href="fullPageUrl" target="_blank" class="fixed top-2 right-2 bg-white text-gray-600 hover:text-blue-600 px-3 py-1.5 rounded-full shadow-md text-xs font-medium z-50 flex items-center gap-1 border border-gray-200 transition-colors">
+    <a x-show="isIframe" :href="fullPageUrl" target="_blank" rel="noopener noreferrer" title="鼠标中键点击 | 鼠标右键新标签页打开" aria-label="查看完整页面，鼠标中键点击或鼠标右键新标签页打开" class="fullpage-btn bg-white text-gray-600 hover:text-blue-600 px-3 py-1.5 rounded-full shadow-md text-xs font-medium z-50 flex items-center gap-1 border border-gray-200 transition-colors">
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-        查看完整页面
+        <span>查看完整页面</span>
+        <span class="fp-tooltip" aria-hidden="true">鼠标中键点击 ｜ 鼠标右键新标签页打开</span>
     </a>
 
     <!-- Navigation -->
