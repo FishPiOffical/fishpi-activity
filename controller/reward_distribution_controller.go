@@ -33,7 +33,7 @@ func NewRewardDistributionController(event *core.ServeEvent, fishpiSdk *sdk.Fish
 }
 
 func (c *RewardDistributionController) registerRoutes() {
-	// Reward distribution API routes
+	// todo 发放完成后没有更改活动表中奖励发放状态 需要检查
 	rewardGroup := c.event.Router.Group("/activity-api/reward").Bind(
 		apis.RequireSuperuserAuth(),
 	)
