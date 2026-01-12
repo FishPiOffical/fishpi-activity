@@ -312,7 +312,7 @@
                                 <a x-show="item.articleUrl" :href="item.articleUrl" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1">
                                     <span>📖 活动推文</span>
                                 </a>
-                                <a x-show="item.postArticleUrl" :href="item.postArticleUrl" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1">
+                                <a x-show="item.postArticleUrl || item.collectArticleUrl" :href="item.collectArticleUrl ? item.collectArticleUrl : item.postArticleUrl" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1">
                                     <span>📊 汇总链接</span>
                                 </a>
                             </div>
