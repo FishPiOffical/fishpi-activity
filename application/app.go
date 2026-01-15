@@ -3,6 +3,7 @@ package application
 import (
 	"bless-activity/controller"
 	"bless-activity/pkg/fishpi_sdk"
+	"bless-activity/service/events"
 	"bless-activity/service/fetch_article"
 	"log/slog"
 	"net/http"
@@ -39,6 +40,8 @@ type Application struct {
 	activityController           *controller.ActivityController
 	shieldFiveYearController     *controller.ShieldFiveYearController
 	rewardDistributionController *controller.RewardDistributionController
+
+	eventbus *events.Service
 }
 
 func NewApp() *Application {
@@ -107,18 +110,27 @@ func (application *Application) registerRoutes(event *core.ServeEvent) error {
 		queryToHeader,
 	)
 
-	application.baseController = controller.NewBaseController(event)
-	application.fishPiController = controller.NewFishPiController(event)
+	application.eventbus = events.NewService(event.App)
+
+	// 调整
+	application.baseController = controller.NewBaseController(event, application.eventbus, application.fishPiSdk)
+
+	backendGroup := event.Router.Group("/backend")
+
+	// fishpi 鱼排相关
+	application.fishPiController = controller.NewFishPiController(application.baseController, backendGroup)
+
+	// 待定
 	application.userController = controller.NewUserController(event)
 	application.activityController = controller.NewActivityController(event)
 	application.shieldFiveYearController = controller.NewShieldFiveYearController(event)
-	application.rewardDistributionController = controller.NewRewardDistributionController(event, application.fishPiSdk)
+	application.rewardDistributionController = controller.NewRewardDistributionController(event, application.baseController)
 
 	event.Router.GET("/status", func(e *core.RequestEvent) error {
 		return e.String(http.StatusOK, "ok.")
 	})
 
-	event.Router.GET("/{path...}", apis.Static(os.DirFS("./pb_public"), false))
+	event.Router.GET("/{path...}", apis.Static(os.DirFS("./pb_public"), true))
 
 	return event.Next()
 }

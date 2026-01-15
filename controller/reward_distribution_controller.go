@@ -21,10 +21,9 @@ type RewardDistributionController struct {
 	event     *core.ServeEvent
 }
 
-func NewRewardDistributionController(event *core.ServeEvent, fishpiSdk *sdk.FishPiSDK) *RewardDistributionController {
+func NewRewardDistributionController(event *core.ServeEvent, base *BaseController) *RewardDistributionController {
 	controller := &RewardDistributionController{
-		BaseController: NewBaseController(event),
-		fishpiSdk:      fishpiSdk,
+		BaseController: base,
 		event:          event,
 	}
 

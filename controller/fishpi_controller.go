@@ -1,20 +1,20 @@
 package controller
 
 import (
-	"bless-activity/model"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"path/filepath"
-	"strings"
-	"time"
 
-	"github.com/imroc/req/v3"
+	"bless-activity/model"
+
+	types2 "github.com/FishPiOffical/golang-sdk/types"
+	"github.com/duke-git/lancet/v2/convertor"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/router"
 )
 
 const (
@@ -22,23 +22,24 @@ const (
 	ctxFishpiNext      = "next"
 	ctxFishpiOpenId    = "openid"
 	ctxFishpiUserInfo  = "fishpi_user_info"
+	ctxFishpiClientId  = "client_id"
 )
 
 type FishPiController struct {
-	event *core.ServeEvent
-	app   core.App
+	*BaseController
+
+	group *router.RouterGroup[*core.RequestEvent]
 
 	logger *slog.Logger
 }
 
-func NewFishPiController(event *core.ServeEvent) *FishPiController {
-	logger := event.App.Logger().With(
-		slog.String("controller", "fishpi"),
-	)
+func NewFishPiController(base *BaseController, group *router.RouterGroup[*core.RequestEvent]) *FishPiController {
+	logger := base.app.Logger().WithGroup("controller.fishpi")
 
 	controller := &FishPiController{
-		event:  event,
-		app:    event.App,
+		BaseController: base,
+
+		group:  group,
 		logger: logger,
 	}
 
@@ -48,11 +49,15 @@ func NewFishPiController(event *core.ServeEvent) *FishPiController {
 }
 
 func (controller *FishPiController) registerRoutes() {
-	fishpiGroup := controller.event.Router.Group("/fishpi")
+
+	fishpiGroup := controller.group.Group("/fishpi")
+
 	fishpiGroup.GET("/login", controller.Login)
 	fishpiGroup.GET("/callback", controller.Callback).BindFunc(
 		controller.CallbackVerify,
 	)
+	fishpiGroup.GET("/redirect", controller.Redirect)
+
 }
 
 func (controller *FishPiController) makeActionLogger(action string) *slog.Logger {
@@ -70,34 +75,26 @@ func (controller *FishPiController) Login(event *core.RequestEvent) error {
 	if redirectUrl == "" {
 		redirectUrl = event.Request.URL.Query().Get("next")
 	}
-	if redirectUrl == "" {
-		redirectUrl = event.Request.Header.Get("Referer")
-	}
+	//if redirectUrl == "" {
+	//	redirectUrl = event.Request.Header.Get("Referer")
+	//}
 
 	// 将redirect参数添加到callback URL中
-	callbackUrl := fmt.Sprintf("%s/fishpi/callback", appUrl)
+	callbackUrl := fmt.Sprintf("%s/backend/fishpi/callback", appUrl)
+	callbackParams := url.Values{}
 	if redirectUrl != "" && redirectUrl != "/" && redirectUrl != appUrl && redirectUrl != appUrl+"/" {
-		callbackParams := url.Values{}
 		callbackParams.Set("redirect", redirectUrl)
+	}
+	if clientId := event.Request.URL.Query().Get("client_id"); clientId != "" {
+		callbackParams.Set("client_id", clientId)
+	}
+	if callbackParams.Encode() != "" {
 		callbackUrl = fmt.Sprintf("%s?%s", callbackUrl, callbackParams.Encode())
 	}
 
-	query := url.Values{}
-	query.Set("openid.ns", "http://specs.openid.net/auth/2.0")
-	query.Set("openid.mode", "checkid_setup")
-	query.Set("openid.return_to", callbackUrl)
-	query.Set("openid.realm", appUrl)
-	query.Set("openid.claimed_id", "http://specs.openid.net/auth/2.0/identifier_select")
-	query.Set("openid.identity", "http://specs.openid.net/auth/2.0/identifier_select")
+	link := controller.fishPiSdk.GetOpenIdUrl(appUrl, callbackUrl)
 
-	addr := url.URL{
-		Scheme:   "https",
-		Host:     "fishpi.cn",
-		Path:     "/openid/login",
-		RawQuery: query.Encode(),
-	}
-
-	return event.Redirect(http.StatusFound, addr.String())
+	return event.Redirect(http.StatusFound, link)
 }
 
 func (controller *FishPiController) CallbackVerify(event *core.RequestEvent) error {
@@ -112,54 +109,39 @@ func (controller *FishPiController) CallbackVerify(event *core.RequestEvent) err
 	}
 
 	query := info.Query
-	query["openid.mode"] = "check_authentication"
 
-	resp := new(req.Response)
-	if resp, err = req.C().R().
-		SetBodyJsonMarshal(query).
-		Post("https://fishpi.cn/openid/verify"); err != nil {
+	var openIdPtr *string
+	if openIdPtr, err = controller.fishPiSdk.PostOpenIdVerify(query); err != nil {
 		logger.Error("发起验证请求失败", slog.Any("err", err))
 		return err
 	}
-	valid := false
-	arr := strings.Split(resp.String(), "\n")
-	for _, line := range arr {
-		if strings.HasPrefix(line, "is_valid:") {
-			valid = strings.TrimPrefix(line, "is_valid:") == "true"
-			break
-		}
-	}
-	if !valid {
-		logger.Error("验证失败", slog.String("resp", resp.String()))
-		return errors.New("用户信息无效")
-	}
-	identity := query["openid.identity"]
-	openid := filepath.Base(identity)
 
-	result := new(FishpiUserInfoResult)
-	if resp, err = req.C().R().
-		SetSuccessResult(result).
-		Get(fmt.Sprintf("https://fishpi.cn/api/user/getInfoById?userId=%s", openid)); err != nil {
+	openid := convertor.ToString(openIdPtr)
+
+	resp := new(types2.ApiResponse[*types2.GetUserInfoByIdData])
+	if resp, err = controller.fishPiSdk.GetUserInfoById(openid); err != nil {
 		logger.Error("发起获取用户信息请求失败", slog.Any("err", err))
 		return err
 	}
+	if resp.Code != 0 {
+		logger.Error("获取用户信息失败", slog.String("resp", fmt.Sprintf("%+v", resp)))
+		return errors.New(resp.Msg)
+	}
 
-	if result.Code != 0 {
-		logger.Error("获取用户信息失败", slog.String("resp", resp.String()))
-		return errors.New(result.Msg)
+	// 保存redirect参数
+	redirectUrl := event.Request.URL.Query().Get("redirect")
+	if redirectUrl != "" {
+		event.Set("redirect_url", redirectUrl)
+	}
+	if clientId := event.Request.URL.Query().Get("client_id"); clientId != "" {
+		event.Set(ctxFishpiClientId, clientId)
 	}
 
 	user := new(model.User)
 	if err = event.App.RecordQuery(model.DbNameUsers).Where(dbx.HashExp{model.UsersFieldOId: openid}).One(user); err == nil {
 		event.Set(ctxFishpiLoginUser, user)
-		event.Set(ctxFishpiUserInfo, result.Data)
+		event.Set(ctxFishpiUserInfo, resp.Data)
 		event.Set(ctxFishpiNext, "login")
-
-		// 保存redirect参数
-		redirectUrl := event.Request.URL.Query().Get("redirect")
-		if redirectUrl != "" {
-			event.Set("redirect_url", redirectUrl)
-		}
 
 		return event.Next()
 	} else if !errors.Is(err, sql.ErrNoRows) {
@@ -168,14 +150,8 @@ func (controller *FishPiController) CallbackVerify(event *core.RequestEvent) err
 	}
 
 	event.Set(ctxFishpiOpenId, openid)
-	event.Set(ctxFishpiUserInfo, result.Data)
+	event.Set(ctxFishpiUserInfo, resp.Data)
 	event.Set(ctxFishpiNext, "register")
-
-	// 保存redirect参数
-	redirectUrl := event.Request.URL.Query().Get("redirect")
-	if redirectUrl != "" {
-		event.Set("redirect_url", redirectUrl)
-	}
 
 	return event.Next()
 }
@@ -208,7 +184,7 @@ func (controller *FishPiController) login(event *core.RequestEvent) error {
 		slog.String("path", event.Request.URL.String()),
 	)
 	user := event.Get(ctxFishpiLoginUser).(*model.User)
-	fishpiUserInfo := event.Get(ctxFishpiUserInfo).(*FishpiUserInfo)
+	fishpiUserInfo := event.Get(ctxFishpiUserInfo).(*types2.GetUserInfoByIdData)
 
 	logger = logger.With(slog.String("id", user.Id), slog.String("name", user.GetString("name")))
 
@@ -230,41 +206,32 @@ func (controller *FishPiController) login(event *core.RequestEvent) error {
 		}
 	}
 
-	token, err := user.NewAuthToken()
-	if err != nil {
-		logger.Error("生成token失败", slog.Any("err", err))
-		return err
-	}
-
-	cookie := &http.Cookie{
-		Name:     "token",
-		Value:    token,
-		Path:     "/",
-		MaxAge:   int(user.Collection().AuthToken.DurationTime() / time.Second),
-		Secure:   true,
-		HttpOnly: false,
-		SameSite: http.SameSiteNoneMode,
-	}
-	event.SetCookie(cookie)
+	//token, err := user.NewAuthToken()
+	//if err != nil {
+	//	logger.Error("生成token失败", slog.Any("err", err))
+	//	return err
+	//}
 
 	// 获取重定向URL
-	redirectUrl := "/"
+	redirectUrl := "/backend/fishpi/redirect"
 	if redirect := event.Get("redirect_url"); redirect != nil {
 		if redirectStr, ok := redirect.(string); ok && redirectStr != "" {
 			redirectUrl = redirectStr
 		}
 	}
 
+	// 发送客户端登录通知
+
 	return event.Redirect(http.StatusFound, redirectUrl)
 }
 
 func (controller *FishPiController) register(event *core.RequestEvent) error {
-	logger := controller.makeActionLogger("callback register").With(
-		slog.String("path", event.Request.URL.String()),
-	)
+	//logger := controller.makeActionLogger("callback register").With(
+	//	slog.String("path", event.Request.URL.String()),
+	//)
 
 	openid := event.Get(ctxFishpiOpenId).(string)
-	fishpiUserInfo := event.Get(ctxFishpiUserInfo).(*FishpiUserInfo)
+	fishpiUserInfo := event.Get(ctxFishpiUserInfo).(*types2.GetUserInfoByIdData)
 
 	// 创建用户
 	userCollection, err := controller.app.FindCollectionByNameOrId(model.DbNameUsers)
@@ -284,30 +251,112 @@ func (controller *FishPiController) register(event *core.RequestEvent) error {
 		return err
 	}
 
-	token, err := user.NewAuthToken()
-	if err != nil {
-		logger.Error("生成token失败", slog.Any("err", err))
-		return err
-	}
-
-	cookie := &http.Cookie{
-		Name:     "token",
-		Value:    token,
-		Path:     "/",
-		MaxAge:   int(user.Collection().AuthToken.DurationTime() / time.Second),
-		Secure:   true,
-		HttpOnly: false,
-		SameSite: http.SameSiteNoneMode,
-	}
-	event.SetCookie(cookie)
+	//token, err := user.NewAuthToken()
+	//if err != nil {
+	//	logger.Error("生成token失败", slog.Any("err", err))
+	//	return err
+	//}
 
 	// 获取重定向URL
-	redirectUrl := "/"
+	redirectUrl := "/backend/fishpi/redirect"
 	if redirect := event.Get("redirect_url"); redirect != nil {
 		if redirectStr, ok := redirect.(string); ok && redirectStr != "" {
 			redirectUrl = redirectStr
 		}
 	}
 
+	// 发送客户端登录通知
+
 	return event.Redirect(http.StatusFound, redirectUrl)
+}
+
+func (controller *FishPiController) Redirect(event *core.RequestEvent) error {
+	html := `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录成功</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 60px 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+        .success-icon {
+            font-size: 80px;
+            color: #52c41a;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 35px;
+            line-height: 1.6;
+        }
+        .close-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .close-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        .close-btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✓</div>
+        <h1>您已成功登录</h1>
+        <p>点击下方按钮可关闭此界面</p>
+        <button class="close-btn" onclick="closeWindow()">关闭窗口</button>
+    </div>
+    <script>
+        function closeWindow() {
+            // 尝试关闭窗口
+            window.close();
+            
+            // 如果无法关闭，提示用户
+            setTimeout(function() {
+                if (!window.closed) {
+                    alert('请手动关闭此标签页');
+                }
+            }, 100);
+        }
+    </script>
+</body>
+</html>`
+	return event.HTML(http.StatusOK, html)
 }

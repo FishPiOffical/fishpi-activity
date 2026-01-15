@@ -1,20 +1,28 @@
 package controller
 
 import (
+	"bless-activity/service/events"
 	"time"
 
+	"github.com/FishPiOffical/golang-sdk/sdk"
 	"github.com/pocketbase/pocketbase/core"
 )
 
 type BaseController struct {
 	event *core.ServeEvent
 	app   core.App
+
+	fishPiSdk *sdk.FishPiSDK
+	eventbus  *events.Service
 }
 
-func NewBaseController(event *core.ServeEvent) *BaseController {
+func NewBaseController(event *core.ServeEvent, eventbus *events.Service, fishPiSdk *sdk.FishPiSDK) *BaseController {
 	controller := &BaseController{
 		event: event,
 		app:   event.App,
+
+		fishPiSdk: fishPiSdk,
+		eventbus:  eventbus,
 	}
 	return controller
 }
