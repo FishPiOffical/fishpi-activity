@@ -25,6 +25,7 @@ var (
 	_ core.RecordProxy = (*Reward)(nil)
 	_ core.RecordProxy = (*RewardDistribution)(nil)
 	_ core.RecordProxy = (*RelArticle)(nil)
+	_ core.RecordProxy = (*UserToken)(nil)
 )
 
 const (
