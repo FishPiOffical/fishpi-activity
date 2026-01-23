@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"bless-activity/model"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/router"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 const (
@@ -56,6 +58,7 @@ func (controller *FishPiController) registerRoutes() {
 	fishpiGroup.GET("/callback", controller.Callback).BindFunc(
 		controller.CallbackVerify,
 	)
+	fishpiGroup.GET("/verify", controller.Verify)
 	fishpiGroup.GET("/redirect", controller.Redirect)
 
 }
@@ -75,9 +78,9 @@ func (controller *FishPiController) Login(event *core.RequestEvent) error {
 	if redirectUrl == "" {
 		redirectUrl = event.Request.URL.Query().Get("next")
 	}
-	//if redirectUrl == "" {
-	//	redirectUrl = event.Request.Header.Get("Referer")
-	//}
+	if redirectUrl == "" {
+		redirectUrl = event.Request.Header.Get("Referer")
+	}
 
 	// 将redirect参数添加到callback URL中
 	callbackUrl := fmt.Sprintf("%s/backend/fishpi/callback", appUrl)
@@ -212,13 +215,31 @@ func (controller *FishPiController) login(event *core.RequestEvent) error {
 	//	return err
 	//}
 
+	// 创建userToken记录
+	userTokenCollection, err := event.App.FindCollectionByNameOrId(model.DbNameUserTokens)
+	if err != nil {
+		logger.Error("查找user_token集合失败", slog.Any("user", user), slog.Any("err", err))
+		return err
+	}
+	userToken := model.NewUserTokenFromCollection(userTokenCollection)
+	userToken.SetUserId(user.Id)
+	//userToken.SetToken("") // 请求接口时再生成token
+	userToken.SetState(model.UserTokenStateUnverified)
+	userToken.SetExpired(types.NowDateTime().Add(time.Minute))
+	if err = event.App.Save(userToken); err != nil {
+		logger.Error("创建user_token记录失败", slog.Any("user", user), slog.Any("err", err))
+		return err
+	}
+
 	// 获取重定向URL
-	redirectUrl := "/backend/fishpi/redirect"
+	var values url.Values
+	values.Add("id", userToken.Id)
 	if redirect := event.Get("redirect_url"); redirect != nil {
 		if redirectStr, ok := redirect.(string); ok && redirectStr != "" {
-			redirectUrl = redirectStr
+			values.Add("redirect", redirectStr)
 		}
 	}
+	redirectUrl := "/redirect?" + values.Encode()
 
 	// 发送客户端登录通知
 
@@ -226,9 +247,9 @@ func (controller *FishPiController) login(event *core.RequestEvent) error {
 }
 
 func (controller *FishPiController) register(event *core.RequestEvent) error {
-	//logger := controller.makeActionLogger("callback register").With(
-	//	slog.String("path", event.Request.URL.String()),
-	//)
+	logger := controller.makeActionLogger("callback register").With(
+		slog.String("path", event.Request.URL.String()),
+	)
 
 	openid := event.Get(ctxFishpiOpenId).(string)
 	fishpiUserInfo := event.Get(ctxFishpiUserInfo).(*types2.GetUserInfoByIdData)
@@ -251,23 +272,80 @@ func (controller *FishPiController) register(event *core.RequestEvent) error {
 		return err
 	}
 
-	//token, err := user.NewAuthToken()
-	//if err != nil {
-	//	logger.Error("生成token失败", slog.Any("err", err))
-	//	return err
-	//}
+	// 创建userToken记录
+	userTokenCollection, err := event.App.FindCollectionByNameOrId(model.DbNameUserTokens)
+	if err != nil {
+		logger.Error("查找user_token集合失败", slog.Any("user", user), slog.Any("err", err))
+		return err
+	}
+	userToken := model.NewUserTokenFromCollection(userTokenCollection)
+	userToken.SetUserId(user.Id)
+	//userToken.SetToken("") // 请求接口时再生成token
+	userToken.SetState(model.UserTokenStateUnverified)
+	userToken.SetExpired(types.NowDateTime().Add(time.Minute))
+	if err = event.App.Save(userToken); err != nil {
+		logger.Error("创建user_token记录失败", slog.Any("user", user), slog.Any("err", err))
+		return err
+	}
 
 	// 获取重定向URL
-	redirectUrl := "/backend/fishpi/redirect"
+	var values url.Values
+	values.Add("id", userToken.Id)
 	if redirect := event.Get("redirect_url"); redirect != nil {
 		if redirectStr, ok := redirect.(string); ok && redirectStr != "" {
-			redirectUrl = redirectStr
+			values.Add("redirect", redirectStr)
 		}
 	}
+	redirectUrl := "/redirect?" + values.Encode()
 
 	// 发送客户端登录通知
 
 	return event.Redirect(http.StatusFound, redirectUrl)
+}
+
+func (controller *FishPiController) Verify(event *core.RequestEvent) error {
+	logger := controller.makeActionLogger("verify").With(
+		slog.String("path", event.Request.URL.String()),
+	)
+
+	id := event.Request.URL.Query().Get("id")
+	if id == "" {
+		logger.Error("缺少参数id")
+		return event.BadRequestError("请求异常", nil)
+	}
+
+	userToken := new(model.UserToken)
+	if err := event.App.RecordQuery(model.DbNameUserTokens).Where(dbx.HashExp{model.CommonFieldId: id}).One(userToken); err != nil {
+		logger.Error("查询user_token记录失败", slog.String("id", id), slog.Any("err", err))
+		return event.BadRequestError("参数错误", nil)
+	}
+	if userToken.GetExpired().After(types.NowDateTime()) {
+		logger.Error("user_token已过期", slog.String("id", id), slog.Any("expired", userToken.GetExpired()))
+		return event.BadRequestError("链接已过期，请重新登录", nil)
+	}
+	if userToken.GetState() != model.UserTokenStateUnverified {
+		logger.Error("user_token状态异常", slog.String("id", id), slog.String("state", string(userToken.GetState())))
+		return event.BadRequestError("请勿重复操作", nil)
+	}
+
+	user := model.NewUser(event.Auth)
+	token, err := user.NewAuthToken()
+	if err != nil {
+		logger.Error("生成token失败", slog.Any("err", err))
+		return event.InternalServerError("服务器错误", nil)
+	}
+	userToken.SetToken(token)
+	userToken.SetState(model.UsersFieldVerified)
+
+	if err = event.App.Save(userToken); err != nil {
+		logger.Error("更新user_token记录失败", slog.String("id", id), slog.Any("err", err))
+		return event.InternalServerError("服务器错误", nil)
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"token": token,
+		"user":  user,
+	})
 }
 
 func (controller *FishPiController) Redirect(event *core.RequestEvent) error {
