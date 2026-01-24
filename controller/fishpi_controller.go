@@ -232,7 +232,7 @@ func (controller *FishPiController) login(event *core.RequestEvent) error {
 	}
 
 	// 获取重定向URL
-	var values url.Values
+	values := url.Values{}
 	values.Add("id", userToken.Id)
 	if redirect := event.Get("redirect_url"); redirect != nil {
 		if redirectStr, ok := redirect.(string); ok && redirectStr != "" {
@@ -319,7 +319,7 @@ func (controller *FishPiController) Verify(event *core.RequestEvent) error {
 		logger.Error("查询user_token记录失败", slog.String("id", id), slog.Any("err", err))
 		return event.BadRequestError("参数错误", nil)
 	}
-	if userToken.GetExpired().After(types.NowDateTime()) {
+	if userToken.GetExpired().Before(types.NowDateTime()) {
 		logger.Error("user_token已过期", slog.String("id", id), slog.Any("expired", userToken.GetExpired()))
 		return event.BadRequestError("链接已过期，请重新登录", nil)
 	}
@@ -328,7 +328,11 @@ func (controller *FishPiController) Verify(event *core.RequestEvent) error {
 		return event.BadRequestError("请勿重复操作", nil)
 	}
 
-	user := model.NewUser(event.Auth)
+	user := new(model.User)
+	if err := event.App.RecordQuery(model.DbNameUsers).Where(dbx.HashExp{model.CommonFieldId: userToken.GetUserId()}).One(user); err != nil {
+		logger.Error("查询user_token对应的用户失败", slog.String("id", id), slog.String("user_id", userToken.GetUserId()), slog.Any("err", err))
+		return event.InternalServerError("用户不存在", nil)
+	}
 	token, err := user.NewAuthToken()
 	if err != nil {
 		logger.Error("生成token失败", slog.Any("err", err))
