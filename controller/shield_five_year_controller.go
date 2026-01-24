@@ -78,8 +78,8 @@ func (controller *ShieldFiveYearController) CheckActivityTime(activityId string)
 	activityModel := model.NewActivity(activity)
 	now := time.Now()
 
-	start := activityModel.Start()
-	end := activityModel.End()
+	start := activityModel.GetStart()
+	end := activityModel.GetEnd()
 
 	// 检查活动是否已开始
 	if !start.IsZero() && now.Before(start.Time()) {
@@ -488,7 +488,7 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 		if err := controller.app.RecordQuery(model.DbNameActivities).Where(dbx.HashExp{model.CommonFieldId: data.ActivityId}).One(activityModel); err != nil {
 			return e.BadRequestError("活动不存在", err)
 		}
-		voteId = activityModel.VoteId()
+		voteId = activityModel.GetVoteId()
 
 		if voteId == "" {
 			return e.BadRequestError("该活动未配置投票", nil)
@@ -571,7 +571,7 @@ func (controller *ShieldFiveYearController) GetVotesByActivity(e *core.RequestEv
 	}
 
 	activityModel := model.NewActivity(activity)
-	voteId := activityModel.VoteId()
+	voteId := activityModel.GetVoteId()
 
 	if voteId == "" {
 		return e.JSON(http.StatusOK, map[string]any{
@@ -646,7 +646,7 @@ func (controller *ShieldFiveYearController) GetVoteStats(e *core.RequestEvent) e
 	}
 
 	activityModel := model.NewActivity(activity)
-	voteId := activityModel.VoteId()
+	voteId := activityModel.GetVoteId()
 
 	if voteId == "" {
 		return e.JSON(http.StatusOK, map[string]any{
@@ -987,7 +987,7 @@ func (controller *ShieldFiveYearController) GetVoteQuota(e *core.RequestEvent) e
 	}
 
 	activityModel := model.NewActivity(activity)
-	voteId := activityModel.VoteId()
+	voteId := activityModel.GetVoteId()
 
 	if voteId == "" {
 		return e.JSON(http.StatusOK, map[string]any{
@@ -1048,7 +1048,7 @@ func (controller *ShieldFiveYearController) GetVoteDetails(e *core.RequestEvent)
 	}
 
 	activityModel := model.NewActivity(activity)
-	voteId := activityModel.VoteId()
+	voteId := activityModel.GetVoteId()
 
 	if voteId == "" {
 		return e.JSON(http.StatusOK, map[string]any{

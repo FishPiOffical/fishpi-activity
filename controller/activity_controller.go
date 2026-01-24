@@ -75,18 +75,18 @@ func (controller *ActivityController) GetActivities(e *core.RequestEvent) error 
 
 		activityResp := ActivityResponse{
 			ID:          activity.ProxyRecord().Id,
-			Name:        activity.Name(),
-			Slug:        activity.Slug(),
-			ArticleUrl:  activity.ArticleUrl(),
-			ExternalUrl: activity.ExternalUrl(),
-			Desc:        activity.Desc(),
-			Start:       activity.Start().String(),
-			End:         activity.End().String(),
+			Name:        activity.GetName(),
+			Slug:        activity.GetSlug(),
+			ArticleUrl:  activity.GetArticleUrl(),
+			ExternalUrl: activity.GetExternalUrl(),
+			Desc:        activity.GetDesc(),
+			Start:       activity.GetStart().String(),
+			End:         activity.GetEnd().String(),
 		}
 
 		// 查询活动关联的奖励信息
-		rewardGroupId := activity.RewardGroupId()
-		slog.Info("活动信息", slog.String("activity", activity.Name()), slog.String("rewardGroupId", rewardGroupId))
+		rewardGroupId := activity.GetRewardGroupId()
+		slog.Info("活动信息", slog.String("activity", activity.GetName()), slog.String("rewardGroupId", rewardGroupId))
 		if rewardGroupId != "" {
 			// 根据 rewardGroupId 查询 rewards 表
 			rewards, err := controller.app.FindRecordsByFilter(
@@ -98,7 +98,7 @@ func (controller *ActivityController) GetActivities(e *core.RequestEvent) error 
 				map[string]any{"rewardGroupId": rewardGroupId},
 			)
 
-			slog.Info("奖励内容 ", slog.String("activity", activity.Name()), slog.Any("err", err), slog.Int("count", len(rewards)))
+			slog.Info("奖励内容 ", slog.String("activity", activity.GetName()), slog.Any("err", err), slog.Int("count", len(rewards)))
 			if err == nil && len(rewards) > 0 {
 				rewardItems := make([]RewardItem, 0, len(rewards))
 				for _, rewardRecord := range rewards {
@@ -138,7 +138,7 @@ func (controller *ActivityController) GetActivityRewards(e *core.RequestEvent) e
 	}
 
 	activityModel := model.NewActivity(activity)
-	rewardGroupId := activityModel.RewardGroupId()
+	rewardGroupId := activityModel.GetRewardGroupId()
 
 	type RewardItem struct {
 		Name  string `json:"name"`
@@ -178,11 +178,11 @@ func (controller *ActivityController) GetActivityRewards(e *core.RequestEvent) e
 
 	return e.JSON(http.StatusOK, map[string]interface{}{
 		"activityId": activityId,
-		"name":       activityModel.Name(),
-		"desc":       activityModel.Desc(),
+		"name":       activityModel.GetName(),
+		"desc":       activityModel.GetDesc(),
 		"rewards":    rewardItems,
-		"start":      activityModel.Start(),
-		"end":        activityModel.End(),
+		"start":      activityModel.GetStart(),
+		"end":        activityModel.GetEnd(),
 	})
 }
 
@@ -240,35 +240,35 @@ func (controller *ActivityController) GetActivityList(e *core.RequestEvent) erro
 	for _, record := range activities {
 		activity := model.NewActivity(record)
 
-		startTime := activity.Start().Time()
-		endTime := activity.End().Time()
+		startTime := activity.GetStart().Time()
+		endTime := activity.GetEnd().Time()
 
 		activityItem := ActivityItem{
 			ID:    activity.ProxyRecord().Id,
-			Name:  activity.Name(),
-			Start: activity.Start().String(),
-			End:   activity.End().String(),
+			Name:  activity.GetName(),
+			Start: activity.GetStart().String(),
+			End:   activity.GetEnd().String(),
 		}
 
 		// links - 包含slug, articleUrl, externalUrl
 		if expandMap["links"] {
-			slug := activity.Slug()
+			slug := activity.GetSlug()
 			if slug != "" {
 				activityItem.Slug = slug
 				activityItem.SlugUrl = appURL + "/" + slug + ".html"
 			}
-			activityItem.ArticleUrl = activity.ArticleUrl()
-			activityItem.ExternalUrl = activity.ExternalUrl()
+			activityItem.ArticleUrl = activity.GetArticleUrl()
+			activityItem.ExternalUrl = activity.GetExternalUrl()
 		}
 
 		// details - 包含desc
 		if expandMap["details"] {
-			activityItem.Desc = activity.Desc()
+			activityItem.Desc = activity.GetDesc()
 		}
 
 		// rewards - 包含奖励信息
 		if expandMap["rewards"] {
-			rewardGroupId := activity.RewardGroupId()
+			rewardGroupId := activity.GetRewardGroupId()
 			if rewardGroupId != "" {
 				rewards, err := controller.app.FindRecordsByFilter(
 					model.DbNameRewards,

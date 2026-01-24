@@ -83,7 +83,7 @@ func (service *Service) FetchArticles(activity *model.Activity) {
 	for {
 		response, err := service.sdk.GetArticles(&types2.GetArticlesRequest{
 			Type:    types2.GetArticleTypeTag,
-			Keyword: activity.Tag(),
+			Keyword: activity.GetTag(),
 			Page:    page,
 			Size:    size,
 		})

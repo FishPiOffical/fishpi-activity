@@ -74,7 +74,7 @@ func (c *RewardDistributionController) DistributeRewards(event *core.RequestEven
 	)
 
 	// 获取活动关联的投票
-	voteId := activity.VoteId()
+	voteId := activity.GetVoteId()
 	if voteId == "" {
 		return event.BadRequestError("Activity has no vote associated", nil)
 	}
@@ -87,7 +87,7 @@ func (c *RewardDistributionController) DistributeRewards(event *core.RequestEven
 	}
 
 	// 获取活动关联的奖励组
-	rewardGroupId := activity.RewardGroupId()
+	rewardGroupId := activity.GetRewardGroupId()
 	if rewardGroupId == "" {
 		return event.BadRequestError("Activity has no reward group associated", nil)
 	}
@@ -332,7 +332,7 @@ func (c *RewardDistributionController) DistributeRewards(event *core.RequestEven
 		"success":        successCount,
 		"failed":         failedCount,
 		"totalUsers":     len(usersToReward),
-		"activityStatus": activity.RewardDistributionStatus(),
+		"activityStatus": activity.GetRewardDistributionStatus(),
 	})
 }
 
@@ -474,7 +474,7 @@ func (c *RewardDistributionController) RetryFailedDistributions(event *core.Requ
 		return event.NotFoundError("Activity not found", err)
 	}
 
-	voteId := activity.VoteId()
+	voteId := activity.GetVoteId()
 	if voteId == "" {
 		return event.BadRequestError("Activity has no vote associated", nil)
 	}

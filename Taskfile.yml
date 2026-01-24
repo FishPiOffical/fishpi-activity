@@ -13,3 +13,8 @@ tasks:
     cmds:
       - mkdir -p _tmp
       - go build -o _tmp/fishpi-activity .
+
+  gen:
+    desc: 生成枚举
+    cmds:
+      - go generate ./...
