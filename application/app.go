@@ -86,9 +86,11 @@ func (application *Application) init(event *core.BootstrapEvent) error {
 	)
 
 	application.fetchArticleService = fetch_article.NewService(application.app, application.fishPiSdk)
-	if err = application.fetchArticleService.Run(); err != nil {
-		event.App.Logger().Error("启动文章爬取服务失败", slog.Any("err", err))
-		return err
+	if !application.app.IsDev() {
+		if err = application.fetchArticleService.Run(); err != nil {
+			event.App.Logger().Error("启动文章爬取服务失败", slog.Any("err", err))
+			return err
+		}
 	}
 
 	// 问题修复
