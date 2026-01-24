@@ -21,6 +21,7 @@ const (
 	ActivitiesFieldRewardDistributionStatus = "rewardDistributionStatus" // 奖励发放状态
 	ActivitiesFieldHideInList               = "hideInList"               // 是否在列表隐藏
 	ActivitiesFieldChildActivityIds         = "childActivityIds"         // 子活动ID列表
+	ActivitiesFieldImage                    = "image"                    // 活动图片
 	ActivitiesFieldCreated                  = "created"                  // 创建时间
 	ActivitiesFieldUpdated                  = "updated"                  // 更新时间
 )
@@ -153,6 +154,14 @@ func (activity *Activity) GetChildActivityIds() []string {
 
 func (activity *Activity) SetChildActivityIds(childActivityIds []string) {
 	activity.Set(ActivitiesFieldChildActivityIds, childActivityIds)
+}
+
+func (activity *Activity) GetImage() string {
+	return activity.GetString(ActivitiesFieldImage)
+}
+
+func (activity *Activity) SetImage(value string) {
+	activity.Set(ActivitiesFieldImage, value)
 }
 
 func (activity *Activity) GetCreated() types.DateTime {
