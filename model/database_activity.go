@@ -59,6 +59,14 @@ redirect // 外链活动
 */
 type ActivityTemplate string
 
+func (activity *Activity) GetTemplate() ActivityTemplate {
+	return MustParseActivityTemplate(activity.GetString(ActivitiesFieldTemplate))
+}
+
+func (activity *Activity) SetTemplate(value ActivityTemplate) {
+	activity.Set(ActivitiesFieldTemplate, value)
+}
+
 func (activity *Activity) GetSlug() string {
 	return activity.GetString(ActivitiesFieldSlug)
 }
