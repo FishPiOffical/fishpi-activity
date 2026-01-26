@@ -9,6 +9,7 @@ import (
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 type ShieldFiveYearController struct {
@@ -503,6 +504,10 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 	if voteId == "" {
 		return e.BadRequestError("投票ID不能为空", nil)
 	}
+	vote := new(model.Vote)
+	if err := controller.app.RecordQuery(model.DbNameVotes).Where(dbx.HashExp{model.CommonFieldId: voteId}).One(vote); err != nil {
+		return e.BadRequestError("投票活动不存在", err)
+	}
 
 	// 检查是否已经投过票
 	var existingVoteLogs []*model.VoteLog
@@ -539,6 +544,12 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 		return e.BadRequestError("您的投票次数已用完", nil)
 	}
 
+	valid := model.VoteValidInvalid
+	userDay := user.RegisteredAt().Add(time.Duration(vote.UserRegisterDays()*24) * time.Hour)
+	if userDay.After(types.NowDateTime()) {
+		valid = model.VoteValidValid
+	}
+
 	// 创建投票记录
 	collection, err := controller.app.FindCollectionByNameOrId(model.DbNameVoteLogs)
 	if err != nil {
@@ -550,6 +561,7 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 	voteLog.SetFromUserId(user.Id)
 	voteLog.SetToUserId(data.ToUserId)
 	voteLog.SetComment(data.Comment)
+	voteLog.SetValid(valid)
 
 	if err := controller.app.Save(voteLog); err != nil {
 		return e.InternalServerError("保存投票失败", err)

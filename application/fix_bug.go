@@ -2,7 +2,9 @@ package application
 
 import (
 	"bless-activity/model"
+	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -54,12 +56,18 @@ func (application *Application) fixVoteLogValid(e *core.BootstrapEvent) error {
 			continue
 		}
 
+		voteRecord := new(model.Vote)
+		if err = app.RecordQuery(model.DbNameVotes).Where(dbx.HashExp{model.CommonFieldId: voteLog.VoteId()}).One(voteRecord); err != nil {
+			app.Logger().Warn("找不到关联投票", "voteId", voteLog.VoteId(), "voteLogId", voteLogRecord.Id)
+			continue
+		}
+
 		user := model.NewUser(userRecord)
 		registeredAt := user.RegisteredAt()
 		voteCreatedAt := voteLog.Created()
 
 		// Check if vote was created at least 3 months after registration
-		threeMonthsAfterRegistration := registeredAt.Time().AddDate(0, 3, 0)
+		threeMonthsAfterRegistration := registeredAt.Time().Add(time.Duration(voteRecord.UserRegisterDays()*24) * time.Hour)
 
 		if voteCreatedAt.Time().After(threeMonthsAfterRegistration) || voteCreatedAt.Time().Equal(threeMonthsAfterRegistration) {
 			voteLog.SetValid(model.VoteValidValid)
