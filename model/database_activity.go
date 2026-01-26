@@ -9,6 +9,7 @@ import (
 const (
 	DbNameActivities                        = "activities"               // 活动表
 	ActivitiesFieldName                     = "name"                     // 活动名称
+	ActivitiesFieldTemplate                 = "template"                 // 活动模板
 	ActivitiesFieldSlug                     = "slug"                     // 活动标识
 	ActivitiesFieldArticleUrl               = "articleUrl"               // 鱼排文章链接
 	ActivitiesFieldExternalUrl              = "externalUrl"              // 活动外部链接
@@ -48,6 +49,15 @@ func (activity *Activity) GetName() string {
 func (activity *Activity) SetName(value string) {
 	activity.Set(ActivitiesFieldName, value)
 }
+
+// ActivityTemplate 活动模版
+/*
+ENUM(
+article // 征文活动
+redirect // 外链活动
+)
+*/
+type ActivityTemplate string
 
 func (activity *Activity) GetSlug() string {
 	return activity.GetString(ActivitiesFieldSlug)

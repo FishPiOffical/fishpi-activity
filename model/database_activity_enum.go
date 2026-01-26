@@ -12,6 +12,90 @@ import (
 )
 
 const (
+	// ActivityTemplateArticle is a ActivityTemplate of type article.
+	// 征文活动
+	ActivityTemplateArticle ActivityTemplate = "article"
+	// ActivityTemplateRedirect is a ActivityTemplate of type redirect.
+	// 外链活动
+	ActivityTemplateRedirect ActivityTemplate = "redirect"
+)
+
+var ErrInvalidActivityTemplate = fmt.Errorf("not a valid ActivityTemplate, try [%s]", strings.Join(_ActivityTemplateNames, ", "))
+
+var _ActivityTemplateNames = []string{
+	string(ActivityTemplateArticle),
+	string(ActivityTemplateRedirect),
+}
+
+// ActivityTemplateNames returns a list of possible string values of ActivityTemplate.
+func ActivityTemplateNames() []string {
+	tmp := make([]string, len(_ActivityTemplateNames))
+	copy(tmp, _ActivityTemplateNames)
+	return tmp
+}
+
+// ActivityTemplateValues returns a list of the values for ActivityTemplate
+func ActivityTemplateValues() []ActivityTemplate {
+	return []ActivityTemplate{
+		ActivityTemplateArticle,
+		ActivityTemplateRedirect,
+	}
+}
+
+// String implements the Stringer interface.
+func (x ActivityTemplate) String() string {
+	return string(x)
+}
+
+// IsValid provides a quick way to determine if the typed value is
+// part of the allowed enumerated values
+func (x ActivityTemplate) IsValid() bool {
+	_, err := ParseActivityTemplate(string(x))
+	return err == nil
+}
+
+var _ActivityTemplateValue = map[string]ActivityTemplate{
+	"article":  ActivityTemplateArticle,
+	"redirect": ActivityTemplateRedirect,
+}
+
+// ParseActivityTemplate attempts to convert a string to a ActivityTemplate.
+func ParseActivityTemplate(name string) (ActivityTemplate, error) {
+	if x, ok := _ActivityTemplateValue[name]; ok {
+		return x, nil
+	}
+	return ActivityTemplate(""), fmt.Errorf("%s is %w", name, ErrInvalidActivityTemplate)
+}
+
+// MustParseActivityTemplate converts a string to a ActivityTemplate, and panics if is not valid.
+func MustParseActivityTemplate(name string) ActivityTemplate {
+	val, err := ParseActivityTemplate(name)
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
+func (x ActivityTemplate) Ptr() *ActivityTemplate {
+	return &x
+}
+
+// MarshalText implements the text marshaller method.
+func (x ActivityTemplate) MarshalText() ([]byte, error) {
+	return []byte(string(x)), nil
+}
+
+// UnmarshalText implements the text unmarshaller method.
+func (x *ActivityTemplate) UnmarshalText(text []byte) error {
+	tmp, err := ParseActivityTemplate(string(text))
+	if err != nil {
+		return err
+	}
+	*x = tmp
+	return nil
+}
+
+const (
 	// DistributionStatusPending is a DistributionStatus of type pending.
 	// 待发放
 	DistributionStatusPending DistributionStatus = "pending"
