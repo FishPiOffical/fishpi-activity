@@ -53,6 +53,7 @@ func (controller *VoteJuryController) registerRoutes() {
 	// 用户接口
 	juryGroup.POST("/apply", controller.Apply).BindFunc(controller.RequireAuth)
 	juryGroup.POST("/vote", controller.Vote).BindFunc(controller.RequireAuth)
+	juryGroup.POST("/vote/cancel", controller.CancelVote).BindFunc(controller.RequireAuth)
 	juryGroup.GET("/result/{voteId}", controller.GetResult)
 	juryGroup.GET("/my-apply/{voteId}", controller.GetMyApply).BindFunc(controller.RequireAuth)
 	juryGroup.GET("/candidates/{voteId}", controller.GetCandidates).BindFunc(controller.RequireAuth)
@@ -252,6 +253,22 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 			continue
 		}
 
+		// 统计该轮投票的人数
+		var roundVoteLogs []*model.VoteJuryLog
+		controller.app.RecordQuery(model.DbNameVoteJuryLogs).
+			Where(dbx.HashExp{
+				model.VoteJuryLogFieldVoteId: voteId,
+				model.VoteJuryLogFieldRound:  result.Round(),
+			}).
+			All(&roundVoteLogs)
+
+		votedUserIds := make(map[string]bool)
+		for _, log := range roundVoteLogs {
+			votedUserIds[log.FromUserId()] = true
+		}
+		votedCount := len(votedUserIds)
+		abstainCount := len(juryUsers) - votedCount // 弃票人数
+
 		// 扩展用户信息
 		resultWithUsers := make([]map[string]any, 0)
 		for userId, count := range voteResults {
@@ -275,10 +292,13 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 		}
 
 		roundResults = append(roundResults, map[string]any{
-			"round":    result.Round(),
-			"results":  resultWithUsers,
-			"continue": result.Continue(),
-			"userIds":  result.UserIds(),
+			"round":        result.Round(),
+			"results":      resultWithUsers,
+			"continue":     result.Continue(),
+			"userIds":      result.UserIds(),
+			"votedCount":   votedCount,
+			"abstainCount": abstainCount,
+			"totalMembers": len(juryUsers),
 		})
 	}
 
@@ -326,12 +346,42 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 				// 从结果中获取票数
 				var voteResults map[string]int
 				json.Unmarshal([]byte(lastResult.Results()), &voteResults)
+
+				// 获取获胜者的文章
+				var winnerArticles []map[string]any
+				activity := new(model.Activity)
+				if err := controller.app.RecordQuery(model.DbNameActivities).
+					Where(dbx.HashExp{model.ActivitiesFieldVoteId: voteId}).
+					One(activity); err == nil {
+					var articles []*model.RelArticle
+					if err := controller.app.RecordQuery(model.DbNameRelArticles).
+						Where(dbx.HashExp{
+							model.RelArticlesFieldActivityId: activity.Id,
+							model.RelArticlesFieldUserId:     winnerId,
+						}).
+						All(&articles); err == nil {
+						for _, art := range articles {
+							winnerArticles = append(winnerArticles, map[string]any{
+								"id":           art.Id,
+								"oId":          art.OId(),
+								"title":        art.Title(),
+								"viewCount":    art.ViewCount(),
+								"goodCnt":      art.GoodCnt(),
+								"commentCount": art.CommentCount(),
+								"collectCnt":   art.CollectCnt(),
+								"thankCnt":     art.ThankCnt(),
+							})
+						}
+					}
+				}
+
 				finalWinner = map[string]any{
 					"id":       user.Id,
 					"name":     user.Name(),
 					"nickname": user.Nickname(),
 					"avatar":   user.Avatar(),
 					"votes":    voteResults[winnerId],
+					"articles": winnerArticles,
 				}
 			}
 		}
@@ -1095,6 +1145,104 @@ func (controller *VoteJuryController) Vote(event *core.RequestEvent) error {
 	})
 }
 
+// CancelVote 撤销投票
+func (controller *VoteJuryController) CancelVote(event *core.RequestEvent) error {
+	data := struct {
+		VoteId   string `json:"voteId"`
+		ToUserId string `json:"toUserId"`
+	}{}
+
+	if err := event.BindBody(&data); err != nil {
+		return event.BadRequestError("参数错误", err)
+	}
+
+	if data.VoteId == "" {
+		return event.BadRequestError("投票ID不能为空", nil)
+	}
+
+	// 获取评审团规则
+	rule := new(model.VoteJuryRule)
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryRules).
+		Where(dbx.HashExp{model.VoteJuryRuleFieldVoteId: data.VoteId}).
+		One(rule); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return event.NotFoundError("评审团规则不存在", nil)
+		}
+		return event.InternalServerError("获取评审团规则失败", err)
+	}
+
+	// 检查状态
+	if rule.Status() != model.JuryStatusVoting {
+		return event.BadRequestError("当前不在投票阶段", nil)
+	}
+
+	currentRound := rule.CurrentRound()
+	if currentRound == 0 {
+		currentRound = 1
+	}
+
+	// 检查当前轮次是否已经算过票
+	existingResult := new(model.VoteJuryResult)
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryResults).
+		Where(dbx.HashExp{
+			model.VoteJuryResultFieldVoteId: data.VoteId,
+			model.VoteJuryResultFieldRound:  currentRound,
+		}).
+		One(existingResult); err == nil {
+		return event.BadRequestError("当前轮次已算票，无法撤销投票", nil)
+	}
+
+	userId := event.Auth.Id
+
+	// 检查是否是评审团成员
+	juryUser := new(model.VoteJuryUser)
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
+		Where(dbx.HashExp{
+			model.VoteJuryUserFieldVoteId: data.VoteId,
+			model.VoteJuryUserFieldUserId: userId,
+			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+		}).
+		One(juryUser); err != nil {
+		return event.ForbiddenError("您不是评审团成员", nil)
+	}
+
+	// 查找要撤销的投票记录
+	conditions := dbx.HashExp{
+		model.VoteJuryLogFieldVoteId:     data.VoteId,
+		model.VoteJuryLogFieldFromUserId: userId,
+		model.VoteJuryLogFieldRound:      currentRound,
+	}
+	if data.ToUserId != "" {
+		conditions[model.VoteJuryLogFieldToUserId] = data.ToUserId
+	}
+
+	var voteLogs []*model.VoteJuryLog
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryLogs).
+		Where(conditions).
+		All(&voteLogs); err != nil {
+		return event.InternalServerError("查询投票记录失败", err)
+	}
+
+	if len(voteLogs) == 0 {
+		return event.BadRequestError("没有找到可撤销的投票记录", nil)
+	}
+
+	// 删除投票记录
+	cancelledCount := 0
+	for _, log := range voteLogs {
+		if err := controller.app.Delete(log); err != nil {
+			controller.logger.Error("删除投票记录失败", slog.Any("err", err))
+		} else {
+			cancelledCount++
+		}
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"message":        fmt.Sprintf("已撤销 %d 条投票记录", cancelledCount),
+		"cancelledCount": cancelledCount,
+	})
+}
+
 // GetResult 获取投票结果
 func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error {
 	voteId := event.Request.PathValue("voteId")
@@ -1117,6 +1265,21 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 			controller.logger.Error("解析投票结果失败", slog.Any("err", err))
 			continue
 		}
+
+		// 统计该轮投票的人数
+		var roundVoteLogs []*model.VoteJuryLog
+		controller.app.RecordQuery(model.DbNameVoteJuryLogs).
+			Where(dbx.HashExp{
+				model.VoteJuryLogFieldVoteId: voteId,
+				model.VoteJuryLogFieldRound:  result.Round(),
+			}).
+			All(&roundVoteLogs)
+
+		votedUserIds := make(map[string]bool)
+		for _, log := range roundVoteLogs {
+			votedUserIds[log.FromUserId()] = true
+		}
+		votedCount := len(votedUserIds)
 
 		// 扩展用户信息
 		resultWithUsers := make([]map[string]any, 0)
@@ -1141,10 +1304,11 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 		}
 
 		roundResults = append(roundResults, map[string]any{
-			"round":    result.Round(),
-			"results":  resultWithUsers,
-			"continue": result.Continue(),
-			"userIds":  result.UserIds(),
+			"round":      result.Round(),
+			"results":    resultWithUsers,
+			"continue":   result.Continue(),
+			"userIds":    result.UserIds(),
+			"votedCount": votedCount,
 		})
 	}
 
@@ -1197,12 +1361,42 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 				One(user); err == nil {
 				var voteResults map[string]int
 				json.Unmarshal([]byte(lastResult.Results()), &voteResults)
+
+				// 获取获胜者的文章
+				var winnerArticles []map[string]any
+				activity := new(model.Activity)
+				if err := controller.app.RecordQuery(model.DbNameActivities).
+					Where(dbx.HashExp{model.ActivitiesFieldVoteId: voteId}).
+					One(activity); err == nil {
+					var articles []*model.RelArticle
+					if err := controller.app.RecordQuery(model.DbNameRelArticles).
+						Where(dbx.HashExp{
+							model.RelArticlesFieldActivityId: activity.Id,
+							model.RelArticlesFieldUserId:     winnerId,
+						}).
+						All(&articles); err == nil {
+						for _, art := range articles {
+							winnerArticles = append(winnerArticles, map[string]any{
+								"id":           art.Id,
+								"oId":          art.OId(),
+								"title":        art.Title(),
+								"viewCount":    art.ViewCount(),
+								"goodCnt":      art.GoodCnt(),
+								"commentCount": art.CommentCount(),
+								"collectCnt":   art.CollectCnt(),
+								"thankCnt":     art.ThankCnt(),
+							})
+						}
+					}
+				}
+
 				finalWinner = map[string]any{
 					"id":       user.Id,
 					"name":     user.Name(),
 					"nickname": user.Nickname(),
 					"avatar":   user.Avatar(),
 					"votes":    voteResults[winnerId],
+					"articles": winnerArticles,
 				}
 			}
 		}
@@ -1213,6 +1407,7 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 		"currentRound":    rule.CurrentRound(),
 		"results":         roundResults,
 		"members":         members,
+		"totalMembers":    len(juryUsers),
 		"isVoteCompleted": isVoteCompleted,
 		"finalWinner":     finalWinner,
 	})
