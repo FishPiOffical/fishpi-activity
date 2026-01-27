@@ -44,14 +44,18 @@ func (controller *VoteJuryController) registerRoutes() {
 	juryGroup.GET("/info/{voteId}", controller.GetJuryInfo)
 	juryGroup.POST("/user/create", controller.CreateUser).BindFunc(controller.RequireAuth, controller.RequireAdmin)
 	juryGroup.POST("/member/add", controller.AddMember).BindFunc(controller.RequireAuth, controller.RequireAdmin)
+	juryGroup.POST("/member/remove", controller.RemoveMember).BindFunc(controller.RequireAuth, controller.RequireAdmin)
 	juryGroup.POST("/apply/audit", controller.AuditApply).BindFunc(controller.RequireAuth, controller.RequireAdmin)
 	juryGroup.POST("/status/switch", controller.SwitchStatus).BindFunc(controller.RequireAuth, controller.RequireAdmin)
 	juryGroup.POST("/calculate", controller.Calculate).BindFunc(controller.RequireAuth, controller.RequireAdmin)
+	juryGroup.GET("/vote-details/{voteId}", controller.GetVoteDetails).BindFunc(controller.RequireAuth, controller.RequireAdminByPath)
 
 	// 用户接口
 	juryGroup.POST("/apply", controller.Apply).BindFunc(controller.RequireAuth)
 	juryGroup.POST("/vote", controller.Vote).BindFunc(controller.RequireAuth)
 	juryGroup.GET("/result/{voteId}", controller.GetResult)
+	juryGroup.GET("/my-apply/{voteId}", controller.GetMyApply).BindFunc(controller.RequireAuth)
+	juryGroup.GET("/candidates/{voteId}", controller.GetCandidates).BindFunc(controller.RequireAuth)
 }
 
 // RequireAuth 要求登录
@@ -75,6 +79,37 @@ func (controller *VoteJuryController) RequireAdmin(event *core.RequestEvent) err
 		}
 	}
 
+	if voteId == "" {
+		return event.BadRequestError("投票ID不能为空", nil)
+	}
+
+	// 获取评审团规则
+	rule := new(model.VoteJuryRule)
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryRules).
+		Where(dbx.HashExp{model.VoteJuryRuleFieldVoteId: voteId}).
+		One(rule); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return event.NotFoundError("评审团规则不存在", nil)
+		}
+		return event.InternalServerError("获取评审团规则失败", err)
+	}
+
+	// 检查是否是管理员
+	admins := rule.Admins()
+	userId := event.Auth.Id
+	if !slices.Contains(admins, userId) {
+		return event.ForbiddenError("无管理员权限", nil)
+	}
+
+	// 将规则存入上下文
+	event.Set("jury_rule", rule)
+
+	return event.Next()
+}
+
+// RequireAdminByPath 通过路径参数校验管理员权限
+func (controller *VoteJuryController) RequireAdminByPath(event *core.RequestEvent) error {
+	voteId := event.Request.PathValue("voteId")
 	if voteId == "" {
 		return event.BadRequestError("投票ID不能为空", nil)
 	}
@@ -169,7 +204,7 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 		var logs []*model.VoteJuryApplyLog
 		if err := controller.app.RecordQuery(model.DbNameVoteJuryApplyLogs).
 			Where(dbx.HashExp{model.VoteJuryApplyLogFieldVoteId: voteId}).
-			OrderBy("-created").
+			OrderBy(fmt.Sprintf("%s DESC", model.VoteJuryApplyLogFieldCreated)).
 			All(&logs); err == nil {
 			for _, log := range logs {
 				user := new(model.User)
@@ -603,13 +638,13 @@ func (controller *VoteJuryController) SwitchStatus(event *core.RequestEvent) err
 	rule := event.Get("jury_rule").(*model.VoteJuryRule)
 	currentStatus := rule.Status()
 
-	// 状态流转校验
+	// 状态流转校验（支持前进和回退）
 	validTransitions := map[model.JuryStatus][]model.JuryStatus{
 		model.JuryStatusPending:   {model.JuryStatusApplying},
-		model.JuryStatusApplying:  {model.JuryStatusPublicity},
-		model.JuryStatusPublicity: {model.JuryStatusVoting},
-		model.JuryStatusVoting:    {model.JuryStatusCompleted},
-		model.JuryStatusCompleted: {}, // 终态
+		model.JuryStatusApplying:  {model.JuryStatusPublicity, model.JuryStatusPending},   // 可回退到未开启
+		model.JuryStatusPublicity: {model.JuryStatusVoting, model.JuryStatusApplying},     // 可回退到申请中
+		model.JuryStatusVoting:    {model.JuryStatusCompleted, model.JuryStatusPublicity}, // 可回退到公示中
+		model.JuryStatusCompleted: {model.JuryStatusVoting},                               // 可回退到评审中
 	}
 
 	validNextStatuses := validTransitions[currentStatus]
@@ -819,6 +854,7 @@ func (controller *VoteJuryController) Apply(event *core.RequestEvent) error {
 			model.VoteJuryApplyLogFieldVoteId: data.VoteId,
 			model.VoteJuryApplyLogFieldUserId: userId,
 		}).
+		AndWhere(dbx.NotIn(model.VoteJuryApplyLogFieldStatus, model.JuryApplyStatusRejected)).
 		One(existingLog); err == nil {
 		return event.BadRequestError("您已经申请过了", nil)
 	}
@@ -1068,5 +1104,396 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 		"currentRound": rule.CurrentRound(),
 		"results":      roundResults,
 		"members":      members,
+	})
+}
+
+// RemoveMember 删除评审团成员
+func (controller *VoteJuryController) RemoveMember(event *core.RequestEvent) error {
+	data := struct {
+		VoteId string `json:"voteId"`
+		UserId string `json:"userId"`
+	}{}
+
+	if err := event.BindBody(&data); err != nil {
+		return event.BadRequestError("参数错误", err)
+	}
+
+	if data.UserId == "" {
+		return event.BadRequestError("用户ID不能为空", nil)
+	}
+
+	// 查找评审团成员记录
+	juryUser := new(model.VoteJuryUser)
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
+		Where(dbx.HashExp{
+			model.VoteJuryUserFieldVoteId: data.VoteId,
+			model.VoteJuryUserFieldUserId: data.UserId,
+		}).
+		One(juryUser); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return event.NotFoundError("该用户不是评审团成员", nil)
+		}
+		return event.InternalServerError("查询评审团成员失败", err)
+	}
+
+	// 更新成员状态为已拒绝
+	juryUser.SetStatus(model.JuryUserStatusRejected)
+	if err := controller.app.Save(juryUser); err != nil {
+		return event.InternalServerError("更新评审团成员状态失败", err)
+	}
+
+	// 查找该用户最新的申请记录并更新
+	var applyLogs []*model.VoteJuryApplyLog
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryApplyLogs).
+		Where(dbx.HashExp{
+			model.VoteJuryApplyLogFieldVoteId: data.VoteId,
+			model.VoteJuryApplyLogFieldUserId: data.UserId,
+		}).
+		OrderBy(fmt.Sprintf("%s DESC", model.VoteJuryApplyLogFieldCreated)).
+		Limit(1).
+		All(&applyLogs); err == nil && len(applyLogs) > 0 {
+		applyLog := applyLogs[0]
+		applyLog.SetStatus(model.JuryApplyStatusRejected)
+		applyLog.SetReason("管理员删除")
+		applyLog.SetAdminId(event.Auth.Id)
+		if err := controller.app.Save(applyLog); err != nil {
+			controller.logger.Error("更新申请日志失败", slog.Any("err", err))
+		}
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"message": "删除评审团成员成功",
+	})
+}
+
+// GetMyApply 获取当前用户的申请记录
+func (controller *VoteJuryController) GetMyApply(event *core.RequestEvent) error {
+	voteId := event.Request.PathValue("voteId")
+	userId := event.Auth.Id
+
+	// 查找用户的申请记录
+	var applyLogs []*model.VoteJuryApplyLog
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryApplyLogs).
+		Where(dbx.HashExp{
+			model.VoteJuryApplyLogFieldVoteId: voteId,
+			model.VoteJuryApplyLogFieldUserId: userId,
+		}).
+		OrderBy(fmt.Sprintf("%s DESC", model.VoteJuryApplyLogFieldCreated)).
+		All(&applyLogs); err != nil {
+		return event.InternalServerError("获取申请记录失败", err)
+	}
+
+	// 格式化结果
+	result := make([]map[string]any, 0, len(applyLogs))
+	for _, log := range applyLogs {
+		result = append(result, map[string]any{
+			"id":      log.Id,
+			"reason":  log.Reason(),
+			"status":  log.Status(),
+			"adminId": log.AdminId(),
+			"created": log.GetDateTime("created").String(),
+		})
+	}
+
+	// 检查是否已是评审团成员
+	isMember := false
+	juryUser := new(model.VoteJuryUser)
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
+		Where(dbx.HashExp{
+			model.VoteJuryUserFieldVoteId: voteId,
+			model.VoteJuryUserFieldUserId: userId,
+			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+		}).
+		One(juryUser); err == nil {
+		isMember = true
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"applies":  result,
+		"isMember": isMember,
+	})
+}
+
+// GetCandidates 获取候选人列表（用于投票）
+func (controller *VoteJuryController) GetCandidates(event *core.RequestEvent) error {
+	voteId := event.Request.PathValue("voteId")
+	userId := event.Auth.Id
+
+	// 获取评审团规则
+	rule := new(model.VoteJuryRule)
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryRules).
+		Where(dbx.HashExp{model.VoteJuryRuleFieldVoteId: voteId}).
+		One(rule); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return event.NotFoundError("评审团规则不存在", nil)
+		}
+		return event.InternalServerError("获取评审团规则失败", err)
+	}
+
+	// 检查是否是评审团成员
+	juryUser := new(model.VoteJuryUser)
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
+		Where(dbx.HashExp{
+			model.VoteJuryUserFieldVoteId: voteId,
+			model.VoteJuryUserFieldUserId: userId,
+			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+		}).
+		One(juryUser); err != nil {
+		return event.ForbiddenError("您不是评审团成员", nil)
+	}
+
+	// 获取投票配置
+	vote := new(model.Vote)
+	if err := controller.app.RecordQuery(model.DbNameVotes).
+		Where(dbx.HashExp{model.CommonFieldId: voteId}).
+		One(vote); err != nil {
+		return event.InternalServerError("获取投票配置失败", err)
+	}
+
+	currentRound := rule.CurrentRound()
+	if currentRound == 0 {
+		currentRound = 1
+	}
+
+	// 获取关联的活动
+	activity := new(model.Activity)
+	if err := controller.app.RecordQuery(model.DbNameActivities).
+		Where(dbx.HashExp{model.ActivitiesFieldVoteId: voteId}).
+		One(activity); err != nil {
+		return event.InternalServerError("获取关联活动失败", err)
+	}
+
+	var candidates []map[string]any
+
+	if currentRound == 1 {
+		// 第一轮：从活动关联的文章中获取候选人
+		var articles []*model.RelArticle
+		if err := controller.app.RecordQuery(model.DbNameRelArticles).
+			Where(dbx.HashExp{model.RelArticlesFieldActivityId: activity.Id}).
+			All(&articles); err != nil {
+			return event.InternalServerError("获取文章列表失败", err)
+		}
+
+		// 按用户分组
+		userArticles := make(map[string][]*model.RelArticle)
+		for _, article := range articles {
+			userArticles[article.UserId()] = append(userArticles[article.UserId()], article)
+		}
+
+		for candidateUserId, arts := range userArticles {
+			user := new(model.User)
+			var userData map[string]any
+			if err := controller.app.RecordQuery(model.DbNameUsers).
+				Where(dbx.HashExp{model.CommonFieldId: candidateUserId}).
+				One(user); err == nil {
+				userData = map[string]any{
+					"id":       user.Id,
+					"name":     user.Name(),
+					"nickname": user.Nickname(),
+					"avatar":   user.Avatar(),
+				}
+			}
+
+			// 格式化文章信息
+			articleList := make([]map[string]any, 0, len(arts))
+			for _, art := range arts {
+				articleList = append(articleList, map[string]any{
+					"id":           art.Id,
+					"oId":          art.OId(),
+					"title":        art.Title(),
+					"viewCount":    art.ViewCount(),
+					"goodCnt":      art.GoodCnt(),
+					"commentCount": art.CommentCount(),
+					"collectCnt":   art.CollectCnt(),
+					"thankCnt":     art.ThankCnt(),
+				})
+			}
+
+			candidates = append(candidates, map[string]any{
+				"userId":   candidateUserId,
+				"user":     userData,
+				"articles": articleList,
+			})
+		}
+	} else {
+		// 后续轮次：从上一轮结果中获取候选人
+		lastResult := new(model.VoteJuryResult)
+		if err := controller.app.RecordQuery(model.DbNameVoteJuryResults).
+			Where(dbx.HashExp{
+				model.VoteJuryResultFieldVoteId: voteId,
+				model.VoteJuryResultFieldRound:  currentRound - 1,
+			}).
+			One(lastResult); err != nil {
+			return event.InternalServerError("获取上一轮结果失败", err)
+		}
+
+		for _, candidateUserId := range lastResult.UserIds() {
+			user := new(model.User)
+			var userData map[string]any
+			if err := controller.app.RecordQuery(model.DbNameUsers).
+				Where(dbx.HashExp{model.CommonFieldId: candidateUserId}).
+				One(user); err == nil {
+				userData = map[string]any{
+					"id":       user.Id,
+					"name":     user.Name(),
+					"nickname": user.Nickname(),
+					"avatar":   user.Avatar(),
+				}
+			}
+
+			// 获取该用户的文章
+			var articles []*model.RelArticle
+			controller.app.RecordQuery(model.DbNameRelArticles).
+				Where(dbx.HashExp{
+					model.RelArticlesFieldActivityId: activity.Id,
+					model.RelArticlesFieldUserId:     candidateUserId,
+				}).
+				All(&articles)
+
+			articleList := make([]map[string]any, 0, len(articles))
+			for _, art := range articles {
+				articleList = append(articleList, map[string]any{
+					"id":           art.Id,
+					"oId":          art.OId(),
+					"title":        art.Title(),
+					"viewCount":    art.ViewCount(),
+					"goodCnt":      art.GoodCnt(),
+					"commentCount": art.CommentCount(),
+					"collectCnt":   art.CollectCnt(),
+					"thankCnt":     art.ThankCnt(),
+				})
+			}
+
+			candidates = append(candidates, map[string]any{
+				"userId":   candidateUserId,
+				"user":     userData,
+				"articles": articleList,
+			})
+		}
+	}
+
+	// 获取当前用户本轮已投票记录
+	var myVotes []*model.VoteJuryLog
+	controller.app.RecordQuery(model.DbNameVoteJuryLogs).
+		Where(dbx.HashExp{
+			model.VoteJuryLogFieldVoteId:     voteId,
+			model.VoteJuryLogFieldFromUserId: userId,
+			model.VoteJuryLogFieldRound:      currentRound,
+		}).
+		All(&myVotes)
+
+	votedUsers := make(map[string]int)
+	for _, v := range myVotes {
+		votedUsers[v.ToUserId()] += v.Times()
+	}
+
+	usedVotes := 0
+	for _, times := range votedUsers {
+		usedVotes += times
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"candidates":     candidates,
+		"currentRound":   currentRound,
+		"totalVotes":     vote.Times(),
+		"usedVotes":      usedVotes,
+		"remainingVotes": vote.Times() - usedVotes,
+		"allowRepeat":    vote.Repeat(),
+		"votedUsers":     votedUsers,
+	})
+}
+
+// GetVoteDetails 获取投票详情（管理员）
+func (controller *VoteJuryController) GetVoteDetails(event *core.RequestEvent) error {
+	voteId := event.Request.PathValue("voteId")
+
+	rule := event.Get("jury_rule").(*model.VoteJuryRule)
+	currentRound := rule.CurrentRound()
+	if currentRound == 0 {
+		currentRound = 1
+	}
+
+	// 获取所有评审团成员
+	var juryUsers []*model.VoteJuryUser
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
+		Where(dbx.HashExp{
+			model.VoteJuryUserFieldVoteId: voteId,
+			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+		}).
+		All(&juryUsers); err != nil {
+		return event.InternalServerError("获取评审团成员失败", err)
+	}
+
+	// 获取当前轮次的所有投票记录
+	var voteLogs []*model.VoteJuryLog
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryLogs).
+		Where(dbx.HashExp{
+			model.VoteJuryLogFieldVoteId: voteId,
+			model.VoteJuryLogFieldRound:  currentRound,
+		}).
+		All(&voteLogs); err != nil {
+		return event.InternalServerError("获取投票记录失败", err)
+	}
+
+	// 按投票人分组
+	votesByUser := make(map[string][]*model.VoteJuryLog)
+	for _, log := range voteLogs {
+		votesByUser[log.FromUserId()] = append(votesByUser[log.FromUserId()], log)
+	}
+
+	// 构建详细的投票信息
+	memberDetails := make([]map[string]any, 0, len(juryUsers))
+	for _, juryUser := range juryUsers {
+		user := new(model.User)
+		var userData map[string]any
+		if err := controller.app.RecordQuery(model.DbNameUsers).
+			Where(dbx.HashExp{model.CommonFieldId: juryUser.UserId()}).
+			One(user); err == nil {
+			userData = map[string]any{
+				"id":       user.Id,
+				"name":     user.Name(),
+				"nickname": user.Nickname(),
+				"avatar":   user.Avatar(),
+			}
+		}
+
+		// 该成员的投票记录
+		userVotes := votesByUser[juryUser.UserId()]
+		voteRecords := make([]map[string]any, 0, len(userVotes))
+		for _, v := range userVotes {
+			toUser := new(model.User)
+			var toUserData map[string]any
+			if err := controller.app.RecordQuery(model.DbNameUsers).
+				Where(dbx.HashExp{model.CommonFieldId: v.ToUserId()}).
+				One(toUser); err == nil {
+				toUserData = map[string]any{
+					"id":       toUser.Id,
+					"name":     toUser.Name(),
+					"nickname": toUser.Nickname(),
+					"avatar":   toUser.Avatar(),
+				}
+			}
+
+			voteRecords = append(voteRecords, map[string]any{
+				"toUserId": v.ToUserId(),
+				"toUser":   toUserData,
+				"times":    v.Times(),
+				"comment":  v.Comment(),
+				"created":  v.GetDateTime("created").String(),
+			})
+		}
+
+		memberDetails = append(memberDetails, map[string]any{
+			"userId":    juryUser.UserId(),
+			"user":      userData,
+			"hasVoted":  len(userVotes) > 0,
+			"voteCount": len(userVotes),
+			"votes":     voteRecords,
+		})
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"currentRound":  currentRound,
+		"memberDetails": memberDetails,
 	})
 }

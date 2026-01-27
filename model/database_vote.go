@@ -37,15 +37,15 @@ const (
 	VoteJuryRuleFieldCurrentRound  = "currentRound"  // 当前轮次
 	VoteJuryRuleFieldApplyTime     = "applyTime"     // 开放申请时间
 	VoteJuryRuleFieldPublicityTime = "publicityTime" // 公示时间
-	VoteJuryRuleCreatedAt          = "createdAt"     // 创建时间
-	VoteJuryRuleUpdatedAt          = "updatedAt"     // 更新时间
+	VoteJuryRuleFieldCreated       = "created"       // 创建时间
+	VoteJuryRuleFieldUpdated       = "updated"       // 更新时间
 
-	DbNameVoteJuryUsers     = "voteJuryUsers" // 评审团成员表
-	VoteJuryUserFieldVoteId = "voteId"        // 关联投票ID
-	VoteJuryUserFieldUserId = "userId"        // 评审团成员用户ID
-	VoteJuryUserFieldStatus = "status"        // 评审团成员状态 待审核、已通过、已拒绝
-	VoteJuryUserCreatedAt   = "createdAt"     // 创建时间
-	VoteJuryUserUpdatedAt   = "updatedAt"     // 更新时间
+	DbNameVoteJuryUsers      = "voteJuryUsers" // 评审团成员表
+	VoteJuryUserFieldVoteId  = "voteId"        // 关联投票ID
+	VoteJuryUserFieldUserId  = "userId"        // 评审团成员用户ID
+	VoteJuryUserFieldStatus  = "status"        // 评审团成员状态 待审核、已通过、已拒绝
+	VoteJuryUserFieldCreated = "created"       // 创建时间
+	VoteJuryUserFieldUpdated = "updated"       // 更新时间
 
 	DbNameVoteJuryApplyLogs      = "voteJuryApplyLogs" // 评审团申请日志表
 	VoteJuryApplyLogFieldVoteId  = "voteId"            // 关联投票ID
@@ -53,8 +53,8 @@ const (
 	VoteJuryApplyLogFieldReason  = "reason"            // 申请理由
 	VoteJuryApplyLogFieldStatus  = "status"            // 申请状态 待审核、已通过、已拒绝
 	VoteJuryApplyLogFieldAdminId = "adminId"           // 审核管理员用户ID
-	VoteJuryApplyLogCreatedAt    = "createdAt"         // 创建时间
-	VoteJuryApplyLogUpdatedAt    = "updatedAt"         // 更新时间
+	VoteJuryApplyLogFieldCreated = "created"           // 创建时间
+	VoteJuryApplyLogFieldUpdated = "updated"           // 更新时间
 
 	DbNameVoteJuryLogs         = "voteJuryLogs" // 评审团投票日志表
 	VoteJuryLogFieldVoteId     = "voteId"       // 关联投票ID
