@@ -40,6 +40,7 @@ type Application struct {
 	activityController           *controller.ActivityController
 	shieldFiveYearController     *controller.ShieldFiveYearController
 	rewardDistributionController *controller.RewardDistributionController
+	voteJuryController           *controller.VoteJuryController
 
 	eventbus *events.Service
 }
@@ -124,6 +125,9 @@ func (application *Application) registerRoutes(event *core.ServeEvent) error {
 
 	// fishpi 鱼排相关
 	application.fishPiController = controller.NewFishPiController(application.baseController, backendGroup)
+
+	// 评审团投票
+	application.voteJuryController = controller.NewVoteJuryController(application.baseController, backendGroup)
 
 	// 待定
 	application.userController = controller.NewUserController(event)
