@@ -927,20 +927,30 @@ func (controller *VoteJuryController) Calculate(event *core.RequestEvent) error 
 	// 获取获胜者信息
 	winnerUser := new(model.User)
 	var winnerInfo map[string]any
+	winnerNickname := "未知用户"
+	winnerVotes := voteCount[winner]
+
 	if err := controller.app.RecordQuery(model.DbNameUsers).
 		Where(dbx.HashExp{model.CommonFieldId: winner}).
 		One(winnerUser); err == nil {
+		winnerNickname = winnerUser.Nickname()
 		winnerInfo = map[string]any{
 			"id":       winnerUser.Id,
 			"name":     winnerUser.Name(),
 			"nickname": winnerUser.Nickname(),
 			"avatar":   winnerUser.Avatar(),
-			"votes":    voteCount[winner],
+			"votes":    winnerVotes,
+		}
+	} else {
+		controller.logger.Error("获取获胜者信息失败", slog.String("winnerId", winner), slog.Any("err", err))
+		winnerInfo = map[string]any{
+			"id":    winner,
+			"votes": winnerVotes,
 		}
 	}
 
 	return event.JSON(http.StatusOK, map[string]any{
-		"message":       fmt.Sprintf("投票结束！获胜者: %s (%d票)", winnerUser.Nickname(), voteCount[winner]),
+		"message":       fmt.Sprintf("投票结束！获胜者: %s (%d票)", winnerNickname, winnerVotes),
 		"needNextRound": false,
 		"currentRound":  currentRound,
 		"winner":        winnerInfo,
