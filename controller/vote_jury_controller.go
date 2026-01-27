@@ -311,6 +311,32 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 		}
 	}
 
+	// 检查是否已有最终获胜者（最后一轮结果的continue为false）
+	var finalWinner map[string]any
+	isVoteCompleted := false
+	if len(results) > 0 {
+		lastResult := results[len(results)-1]
+		if !lastResult.Continue() && len(lastResult.UserIds()) == 1 {
+			isVoteCompleted = true
+			winnerId := lastResult.UserIds()[0]
+			user := new(model.User)
+			if err := controller.app.RecordQuery(model.DbNameUsers).
+				Where(dbx.HashExp{model.CommonFieldId: winnerId}).
+				One(user); err == nil {
+				// 从结果中获取票数
+				var voteResults map[string]int
+				json.Unmarshal([]byte(lastResult.Results()), &voteResults)
+				finalWinner = map[string]any{
+					"id":       user.Id,
+					"name":     user.Name(),
+					"nickname": user.Nickname(),
+					"avatar":   user.Avatar(),
+					"votes":    voteResults[winnerId],
+				}
+			}
+		}
+	}
+
 	return event.JSON(http.StatusOK, map[string]any{
 		"vote": map[string]any{
 			"id":    vote.Id,
@@ -331,11 +357,13 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 			"publicityTime": rule.PublicityTime().String(),
 			"currentRound":  rule.CurrentRound(),
 		},
-		"members":        members,
-		"applyLogs":      applyLogs,
-		"results":        roundResults,
-		"votingProgress": votingProgress,
-		"isAdmin":        isAdmin,
+		"members":         members,
+		"applyLogs":       applyLogs,
+		"results":         roundResults,
+		"votingProgress":  votingProgress,
+		"isAdmin":         isAdmin,
+		"isVoteCompleted": isVoteCompleted,
+		"finalWinner":     finalWinner,
 	})
 }
 
@@ -691,12 +719,19 @@ func (controller *VoteJuryController) Calculate(event *core.RequestEvent) error 
 		currentRound = 1
 	}
 
-	// 获取投票配置
-	vote := new(model.Vote)
-	if err := controller.app.RecordQuery(model.DbNameVotes).
-		Where(dbx.HashExp{model.CommonFieldId: data.VoteId}).
-		One(vote); err != nil {
-		return event.InternalServerError("获取投票配置失败", err)
+	// 检查当前轮次是否已经算过票
+	existingResult := new(model.VoteJuryResult)
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryResults).
+		Where(dbx.HashExp{
+			model.VoteJuryResultFieldVoteId: data.VoteId,
+			model.VoteJuryResultFieldRound:  currentRound,
+		}).
+		One(existingResult); err == nil {
+		// 已经算过票了
+		if !existingResult.Continue() {
+			return event.BadRequestError("投票已结束，无需再次算票", nil)
+		}
+		return event.BadRequestError("当前轮次已算票，请等待下一轮投票完成后再算票", nil)
 	}
 
 	// 统计当前轮次的投票
@@ -708,6 +743,10 @@ func (controller *VoteJuryController) Calculate(event *core.RequestEvent) error 
 		}).
 		All(&voteLogs); err != nil {
 		return event.InternalServerError("获取投票记录失败", err)
+	}
+
+	if len(voteLogs) == 0 {
+		return event.BadRequestError("当前轮次没有投票记录", nil)
 	}
 
 	// 统计每个候选人的得票数
@@ -732,12 +771,12 @@ func (controller *VoteJuryController) Calculate(event *core.RequestEvent) error 
 		}
 	}
 
-	// 判断是否需要进入下一轮
-	needNextRound := false
-	var nextRoundUsers []string
+	// 判断是否需要进入下一轮（有平票）
+	needNextRound := len(topUsers) > 1
 
-	if len(topUsers) > 1 {
-		// 有平票，检查决策票
+	// 如果有平票，检查决策票能否决定
+	var winner string
+	if needNextRound {
 		decisions := rule.Decisions()
 		decisionVotes := make(map[string]int)
 
@@ -762,11 +801,14 @@ func (controller *VoteJuryController) Calculate(event *core.RequestEvent) error 
 			}
 		}
 
-		if len(decisionTopUsers) > 1 || maxDecisionVotes == 0 {
-			// 决策票也无法决定，进入下一轮
-			needNextRound = true
-			nextRoundUsers = topUsers
+		// 如果决策票能决定，则不需要下一轮
+		if len(decisionTopUsers) == 1 && maxDecisionVotes > 0 {
+			needNextRound = false
+			winner = decisionTopUsers[0]
 		}
+	} else {
+		// 没有平票，直接确定获胜者
+		winner = topUsers[0]
 	}
 
 	// 保存本轮结果
@@ -783,34 +825,76 @@ func (controller *VoteJuryController) Calculate(event *core.RequestEvent) error 
 	result.SetResults(string(resultsJson))
 	result.SetContinue(needNextRound)
 	if needNextRound {
-		result.SetUserIds(nextRoundUsers)
+		result.SetUserIds(topUsers) // 平票的用户进入下一轮
+	} else if winner != "" {
+		result.SetUserIds([]string{winner}) // 最终获胜者
 	}
 
 	if err := controller.app.Save(result); err != nil {
 		return event.InternalServerError("保存投票结果失败", err)
 	}
 
-	// 如果需要下一轮
+	// 如果需要下一轮投票
 	if needNextRound {
 		rule.SetCurrentRound(currentRound + 1)
 		if err := controller.app.Save(rule); err != nil {
 			return event.InternalServerError("更新轮次失败", err)
 		}
 
+		// 扩展平票用户信息
+		tieUsers := make([]map[string]any, 0, len(topUsers))
+		for _, userId := range topUsers {
+			user := new(model.User)
+			if err := controller.app.RecordQuery(model.DbNameUsers).
+				Where(dbx.HashExp{model.CommonFieldId: userId}).
+				One(user); err == nil {
+				tieUsers = append(tieUsers, map[string]any{
+					"id":       user.Id,
+					"name":     user.Name(),
+					"nickname": user.Nickname(),
+					"avatar":   user.Avatar(),
+					"votes":    voteCount[userId],
+				})
+			}
+		}
+
 		return event.JSON(http.StatusOK, map[string]any{
-			"message":        "平票，进入下一轮投票",
-			"needNextRound":  true,
-			"nextRound":      currentRound + 1,
-			"nextRoundUsers": nextRoundUsers,
-			"results":        voteCount,
+			"message":       fmt.Sprintf("第 %d 轮投票结束，有 %d 人平票（%d票），进入第 %d 轮投票", currentRound, len(topUsers), maxVotes, currentRound+1),
+			"needNextRound": true,
+			"currentRound":  currentRound,
+			"nextRound":     currentRound + 1,
+			"tieUsers":      tieUsers,
+			"results":       voteCount,
 		})
 	}
 
+	// 投票结束，更新状态为计票完成
+	rule.SetStatus(model.JuryStatusCompleted)
+	if err := controller.app.Save(rule); err != nil {
+		return event.InternalServerError("更新状态失败", err)
+	}
+
+	// 获取获胜者信息
+	winnerUser := new(model.User)
+	var winnerInfo map[string]any
+	if err := controller.app.RecordQuery(model.DbNameUsers).
+		Where(dbx.HashExp{model.CommonFieldId: winner}).
+		One(winnerUser); err == nil {
+		winnerInfo = map[string]any{
+			"id":       winnerUser.Id,
+			"name":     winnerUser.Name(),
+			"nickname": winnerUser.Nickname(),
+			"avatar":   winnerUser.Avatar(),
+			"votes":    voteCount[winner],
+		}
+	}
+
 	return event.JSON(http.StatusOK, map[string]any{
-		"message":       "投票结果已统计",
+		"message":       fmt.Sprintf("投票结束！获胜者: %s (%d票)", winnerUser.Nickname(), voteCount[winner]),
 		"needNextRound": false,
+		"currentRound":  currentRound,
+		"winner":        winnerInfo,
 		"results":       voteCount,
-		"winner":        topUsers[0],
 	})
 }
 
@@ -1099,11 +1183,38 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 		}
 	}
 
+	// 检查是否已有最终获胜者
+	var finalWinner map[string]any
+	isVoteCompleted := false
+	if len(results) > 0 {
+		lastResult := results[len(results)-1]
+		if !lastResult.Continue() && len(lastResult.UserIds()) == 1 {
+			isVoteCompleted = true
+			winnerId := lastResult.UserIds()[0]
+			user := new(model.User)
+			if err := controller.app.RecordQuery(model.DbNameUsers).
+				Where(dbx.HashExp{model.CommonFieldId: winnerId}).
+				One(user); err == nil {
+				var voteResults map[string]int
+				json.Unmarshal([]byte(lastResult.Results()), &voteResults)
+				finalWinner = map[string]any{
+					"id":       user.Id,
+					"name":     user.Name(),
+					"nickname": user.Nickname(),
+					"avatar":   user.Avatar(),
+					"votes":    voteResults[winnerId],
+				}
+			}
+		}
+	}
+
 	return event.JSON(http.StatusOK, map[string]any{
-		"status":       rule.Status(),
-		"currentRound": rule.CurrentRound(),
-		"results":      roundResults,
-		"members":      members,
+		"status":          rule.Status(),
+		"currentRound":    rule.CurrentRound(),
+		"results":         roundResults,
+		"members":         members,
+		"isVoteCompleted": isVoteCompleted,
+		"finalWinner":     finalWinner,
 	})
 }
 
