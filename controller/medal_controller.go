@@ -72,10 +72,17 @@ func (controller *MedalController) registerRoutes() {
 
 	// 给用户授予/撤销勋章
 	group.POST("/grant", controller.GrantMedal)
+	group.POST("/grant/batch", controller.GrantMedalBatch)
 	group.POST("/revoke", controller.RevokeMedal)
 
 	// 搜索勋章
 	group.GET("/search", controller.Search)
+
+	// 用户选择相关
+	group.GET("/users/search", controller.SearchUsers)
+	group.GET("/activities", controller.GetActivities)
+	group.GET("/activity/{activityId}/participants", controller.GetActivityParticipants)
+	group.GET("/vote/{voteId}/jury", controller.GetVoteJuryMembers)
 }
 
 func (controller *MedalController) makeActionLogger(action string) *slog.Logger {
@@ -953,16 +960,16 @@ func (controller *MedalController) GetMedalOwners(event *core.RequestEvent) erro
 
 	// 构建包含用户信息的响应
 	type ownerWithUser struct {
-		Id          string `json:"id"`
-		MedalId     string `json:"medalId"`
-		UserId      string `json:"userId"`
-		Display     bool   `json:"display"`
+		Id           string `json:"id"`
+		MedalId      string `json:"medalId"`
+		UserId       string `json:"userId"`
+		Display      bool   `json:"display"`
 		DisplayOrder int    `json:"displayOrder"`
-		Data        string `json:"data"`
-		Expired     string `json:"expired"`
-		Created     string `json:"created"`
-		Updated     string `json:"updated"`
-		Expand      *struct {
+		Data         string `json:"data"`
+		Expired      string `json:"expired"`
+		Created      string `json:"created"`
+		Updated      string `json:"updated"`
+		Expand       *struct {
 			UserId *struct {
 				Id       string `json:"id"`
 				Name     string `json:"name"`
@@ -975,15 +982,15 @@ func (controller *MedalController) GetMedalOwners(event *core.RequestEvent) erro
 	items := make([]*ownerWithUser, 0, len(owners))
 	for _, owner := range owners {
 		item := &ownerWithUser{
-			Id:          owner.Id,
-			MedalId:     owner.MedalId(),
-			UserId:      owner.UserId(),
-			Display:     owner.Display(),
+			Id:           owner.Id,
+			MedalId:      owner.MedalId(),
+			UserId:       owner.UserId(),
+			Display:      owner.Display(),
 			DisplayOrder: owner.DisplayOrder(),
-			Data:        owner.Data(),
-			Expired:     owner.Expired().String(),
-			Created:     owner.Created().String(),
-			Updated:     owner.Updated().String(),
+			Data:         owner.Data(),
+			Expired:      owner.Expired().String(),
+			Created:      owner.Created().String(),
+			Updated:      owner.Updated().String(),
 		}
 		if user, exists := usersMap[owner.UserId()]; exists {
 			item.Expand = &struct {
@@ -1199,5 +1206,375 @@ func (controller *MedalController) Search(event *core.RequestEvent) error {
 
 	return event.JSON(http.StatusOK, map[string]any{
 		"items": resp.Data,
+	})
+}
+
+// SearchUsers 搜索用户
+func (controller *MedalController) SearchUsers(event *core.RequestEvent) error {
+	logger := controller.makeActionLogger("search_users")
+
+	keyword := event.Request.URL.Query().Get("keyword")
+	if keyword == "" {
+		return event.BadRequestError("搜索关键词不能为空", nil)
+	}
+
+	var users []*model.User
+	// 按用户名或昵称模糊搜索，或者精确匹配oId
+	if err := event.App.RecordQuery(model.DbNameUsers).
+		Where(dbx.Or(
+			dbx.NewExp(fmt.Sprintf("%s LIKE {:keyword}", model.UsersFieldName), dbx.Params{"keyword": "%" + keyword + "%"}),
+			dbx.NewExp(fmt.Sprintf("%s LIKE {:keyword}", model.UsersFieldNickname), dbx.Params{"keyword": "%" + keyword + "%"}),
+			dbx.NewExp(fmt.Sprintf("%s = {:oId}", model.UsersFieldOId), dbx.Params{"oId": keyword}),
+		)).
+		Limit(50).
+		All(&users); err != nil {
+		logger.Error("搜索用户失败", slog.Any("err", err))
+		return event.InternalServerError("搜索用户失败", err)
+	}
+
+	type userItem struct {
+		Id       string `json:"id"`
+		OId      string `json:"oId"`
+		Name     string `json:"name"`
+		Nickname string `json:"nickname"`
+		Avatar   string `json:"avatar"`
+	}
+
+	items := make([]*userItem, 0, len(users))
+	for _, user := range users {
+		items = append(items, &userItem{
+			Id:       user.Id,
+			OId:      user.OId(),
+			Name:     user.Name(),
+			Nickname: user.Nickname(),
+			Avatar:   user.Avatar(),
+		})
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"items": items,
+	})
+}
+
+// GetActivities 获取活动列表
+func (controller *MedalController) GetActivities(event *core.RequestEvent) error {
+	logger := controller.makeActionLogger("get_activities")
+
+	var activities []*model.Activity
+	if err := event.App.RecordQuery(model.DbNameActivities).
+		OrderBy(fmt.Sprintf("%s DESC", model.ActivitiesFieldCreated)).
+		Limit(100).
+		All(&activities); err != nil {
+		logger.Error("获取活动列表失败", slog.Any("err", err))
+		return event.InternalServerError("获取活动列表失败", err)
+	}
+
+	type activityItem struct {
+		Id     string `json:"id"`
+		Name   string `json:"name"`
+		Slug   string `json:"slug"`
+		VoteId string `json:"voteId"`
+	}
+
+	items := make([]*activityItem, 0, len(activities))
+	for _, activity := range activities {
+		items = append(items, &activityItem{
+			Id:     activity.Id,
+			Name:   activity.GetName(),
+			Slug:   activity.GetString(model.ActivitiesFieldSlug),
+			VoteId: activity.GetString(model.ActivitiesFieldVoteId),
+		})
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"items": items,
+	})
+}
+
+// GetActivityParticipants 获取活动参与者
+func (controller *MedalController) GetActivityParticipants(event *core.RequestEvent) error {
+	logger := controller.makeActionLogger("get_activity_participants")
+
+	activityId := event.Request.PathValue("activityId")
+	if activityId == "" {
+		return event.BadRequestError("缺少活动ID", nil)
+	}
+
+	// 查找活动
+	activity := new(model.Activity)
+	if err := event.App.RecordQuery(model.DbNameActivities).
+		Where(dbx.HashExp{model.CommonFieldId: activityId}).
+		One(activity); err != nil {
+		logger.Error("活动不存在", slog.Any("err", err))
+		return event.NotFoundError("活动不存在", err)
+	}
+
+	voteId := activity.GetString(model.ActivitiesFieldVoteId)
+	if voteId == "" {
+		return event.JSON(http.StatusOK, map[string]any{
+			"items": []any{},
+		})
+	}
+
+	// 查询投票日志中的用户
+	var voteJuryLogs []*model.VoteJuryLog
+	if err := event.App.RecordQuery(model.DbNameVoteJuryLogs).
+		Where(dbx.HashExp{model.VoteJuryLogFieldVoteId: voteId}).
+		All(&voteJuryLogs); err != nil {
+		logger.Warn("查询投票日志失败", slog.Any("err", err))
+	}
+
+	// 收集所有参与的用户ID (toUserId 是被投票的参与者)
+	userIdSet := make(map[string]bool)
+	for _, log := range voteJuryLogs {
+		if toUserId := log.ToUserId(); toUserId != "" {
+			userIdSet[toUserId] = true
+		}
+	}
+
+	// 批量查询用户
+	userIds := make([]any, 0, len(userIdSet))
+	for userId := range userIdSet {
+		userIds = append(userIds, userId)
+	}
+
+	type userItem struct {
+		Id       string `json:"id"`
+		OId      string `json:"oId"`
+		Name     string `json:"name"`
+		Nickname string `json:"nickname"`
+		Avatar   string `json:"avatar"`
+	}
+
+	items := make([]*userItem, 0)
+	if len(userIds) > 0 {
+		var users []*model.User
+		if err := event.App.RecordQuery(model.DbNameUsers).
+			Where(dbx.In(model.CommonFieldId, userIds...)).
+			All(&users); err != nil {
+			logger.Warn("批量查询用户失败", slog.Any("err", err))
+		} else {
+			for _, user := range users {
+				items = append(items, &userItem{
+					Id:       user.Id,
+					OId:      user.OId(),
+					Name:     user.Name(),
+					Nickname: user.Nickname(),
+					Avatar:   user.Avatar(),
+				})
+			}
+		}
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"items": items,
+	})
+}
+
+// GetVoteJuryMembers 获取评审团成员
+func (controller *MedalController) GetVoteJuryMembers(event *core.RequestEvent) error {
+	logger := controller.makeActionLogger("get_vote_jury_members")
+
+	voteId := event.Request.PathValue("voteId")
+	if voteId == "" {
+		return event.BadRequestError("缺少投票ID", nil)
+	}
+
+	// 查询评审团成员
+	var juryUsers []*model.VoteJuryUser
+	if err := event.App.RecordQuery(model.DbNameVoteJuryUsers).
+		Where(dbx.HashExp{
+			model.VoteJuryUserFieldVoteId: voteId,
+			model.VoteJuryUserFieldStatus: string(model.JuryUserStatusApproved),
+		}).
+		All(&juryUsers); err != nil {
+		logger.Error("查询评审团成员失败", slog.Any("err", err))
+		return event.InternalServerError("查询评审团成员失败", err)
+	}
+
+	// 收集用户ID
+	userIds := make([]any, 0, len(juryUsers))
+	for _, juryUser := range juryUsers {
+		if userId := juryUser.UserId(); userId != "" {
+			userIds = append(userIds, userId)
+		}
+	}
+
+	type userItem struct {
+		Id       string `json:"id"`
+		OId      string `json:"oId"`
+		Name     string `json:"name"`
+		Nickname string `json:"nickname"`
+		Avatar   string `json:"avatar"`
+	}
+
+	items := make([]*userItem, 0)
+	if len(userIds) > 0 {
+		var users []*model.User
+		if err := event.App.RecordQuery(model.DbNameUsers).
+			Where(dbx.In(model.CommonFieldId, userIds...)).
+			All(&users); err != nil {
+			logger.Warn("批量查询用户失败", slog.Any("err", err))
+		} else {
+			for _, user := range users {
+				items = append(items, &userItem{
+					Id:       user.Id,
+					OId:      user.OId(),
+					Name:     user.Name(),
+					Nickname: user.Nickname(),
+					Avatar:   user.Avatar(),
+				})
+			}
+		}
+	}
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"items": items,
+	})
+}
+
+// GrantMedalBatch 批量授予勋章
+func (controller *MedalController) GrantMedalBatch(event *core.RequestEvent) error {
+	logger := controller.makeActionLogger("grant_medal_batch")
+
+	var req struct {
+		UserIds    []string `json:"userIds"`    // 用户oId列表
+		MedalId    string   `json:"medalId"`    // 勋章ID (鱼排的medalId)
+		ExpireTime int64    `json:"expireTime"` // 毫秒时间戳，0表示永不过期
+		Data       string   `json:"data"`
+	}
+
+	if err := event.BindBody(&req); err != nil {
+		return event.BadRequestError("请求参数错误", err)
+	}
+
+	if len(req.UserIds) == 0 || req.MedalId == "" {
+		return event.BadRequestError("用户ID列表和勋章ID不能为空", nil)
+	}
+
+	// 查找本地勋章记录
+	localMedal := new(model.Medal)
+	if err := event.App.RecordQuery(model.DbNameMedals).Where(dbx.HashExp{
+		model.MedalsFieldMedalId: req.MedalId,
+	}).One(localMedal); err != nil {
+		logger.Error("本地勋章不存在", slog.Any("err", err), slog.String("medal_id", req.MedalId))
+		return event.BadRequestError("本地勋章不存在，请先同步勋章", nil)
+	}
+	localMedalRecordId := localMedal.Id
+
+	ownerCollection, err := event.App.FindCollectionByNameOrId(model.DbNameMedalOwners)
+	if err != nil {
+		logger.Error("获取勋章拥有者集合失败", slog.Any("err", err))
+		return event.InternalServerError("获取勋章拥有者集合失败", err)
+	}
+
+	// 检查是否是开发模式
+	isDev := controller.app.IsDev()
+
+	var (
+		successCount int
+		failedCount  int
+		skippedCount int
+		results      []map[string]any
+	)
+
+	for _, userOId := range req.UserIds {
+		result := map[string]any{
+			"userId":  userOId,
+			"success": false,
+		}
+
+		// 查找本地用户记录
+		localUser := new(model.User)
+		if err := event.App.RecordQuery(model.DbNameUsers).Where(dbx.HashExp{
+			model.UsersFieldOId: userOId,
+		}).One(localUser); err != nil {
+			logger.Warn("本地用户不存在", slog.String("user_id", userOId))
+			result["error"] = "本地用户不存在"
+			failedCount++
+			results = append(results, result)
+			continue
+		}
+		localUserRecordId := localUser.Id
+
+		// 检查是否已拥有该勋章
+		existingOwner := new(model.MedalOwner)
+		if err := event.App.RecordQuery(model.DbNameMedalOwners).Where(dbx.And(
+			dbx.HashExp{model.MedalOwnersFieldMedalId: localMedalRecordId},
+			dbx.HashExp{model.MedalOwnersFieldUserId: localUserRecordId},
+		)).One(existingOwner); err == nil {
+			logger.Info("用户已拥有该勋章，跳过", slog.String("user_id", userOId))
+			result["error"] = "用户已拥有该勋章"
+			skippedCount++
+			results = append(results, result)
+			continue
+		}
+
+		// 开发模式下不实际发放勋章
+		if isDev {
+			logger.Warn("[DEV] 开发模式，跳过实际勋章发放",
+				slog.String("user_id", userOId),
+				slog.String("medal_id", req.MedalId),
+				slog.String("medal_name", localMedal.Name()),
+			)
+		} else {
+			// 调用鱼排接口授予勋章
+			resp, err := controller.fishPiSdk.PostMedalAdminGrant(userOId, req.MedalId, req.ExpireTime, req.Data)
+			if err != nil {
+				logger.Error("授予勋章失败", slog.Any("err", err), slog.String("user_id", userOId))
+				result["error"] = "调用鱼排接口失败"
+				failedCount++
+				results = append(results, result)
+				continue
+			}
+			if resp.Code != 0 {
+				logger.Error("授予勋章失败", slog.Any("resp", resp), slog.String("user_id", userOId))
+				result["error"] = resp.Msg
+				failedCount++
+				results = append(results, result)
+				continue
+			}
+		}
+
+		// 保存到本地数据库
+		ownerRecord := model.NewMedalOwnerFromCollection(ownerCollection)
+		ownerRecord.SetMedalId(localMedalRecordId)
+		ownerRecord.SetUserId(localUserRecordId)
+		ownerRecord.SetData(req.Data)
+		ownerRecord.SetDisplay(true)
+		if req.ExpireTime > 0 {
+			if expired, parseErr := types.ParseDateTime(time.UnixMilli(req.ExpireTime)); parseErr == nil {
+				ownerRecord.SetExpired(expired)
+			}
+		}
+
+		if err := event.App.Save(ownerRecord); err != nil {
+			logger.Error("保存勋章拥有者记录失败", slog.Any("err", err), slog.String("user_id", userOId))
+			result["error"] = "保存本地记录失败"
+			failedCount++
+			results = append(results, result)
+			continue
+		}
+
+		result["success"] = true
+		successCount++
+		results = append(results, result)
+	}
+
+	logger.Info("批量授予勋章完成",
+		slog.Int("total", len(req.UserIds)),
+		slog.Int("success", successCount),
+		slog.Int("failed", failedCount),
+		slog.Int("skipped", skippedCount),
+		slog.Bool("dev_mode", isDev),
+	)
+
+	return event.JSON(http.StatusOK, map[string]any{
+		"total":    len(req.UserIds),
+		"success":  successCount,
+		"failed":   failedCount,
+		"skipped":  skippedCount,
+		"dev_mode": isDev,
+		"results":  results,
 	})
 }
