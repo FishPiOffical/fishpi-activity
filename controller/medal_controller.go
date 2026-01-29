@@ -923,8 +923,95 @@ func (controller *MedalController) GetMedalOwners(event *core.RequestEvent) erro
 		return event.InternalServerError("查询勋章拥有者列表失败", err)
 	}
 
+	// 查询关联的用户信息
+	userIds := make([]string, 0, len(owners))
+	for _, owner := range owners {
+		if userId := owner.UserId(); userId != "" {
+			userIds = append(userIds, userId)
+		}
+	}
+
+	// 批量查询用户
+	usersMap := make(map[string]*model.User)
+	if len(userIds) > 0 {
+		var users []*model.User
+		// 使用 IN 查询批量获取用户
+		userIdsAny := make([]any, len(userIds))
+		for i, id := range userIds {
+			userIdsAny[i] = id
+		}
+		if err := event.App.RecordQuery(model.DbNameUsers).Where(
+			dbx.In(model.CommonFieldId, userIdsAny...),
+		).All(&users); err != nil {
+			logger.Warn("批量查询用户失败", slog.Any("err", err))
+		} else {
+			for _, user := range users {
+				usersMap[user.Id] = user
+			}
+		}
+	}
+
+	// 构建包含用户信息的响应
+	type ownerWithUser struct {
+		Id          string `json:"id"`
+		MedalId     string `json:"medalId"`
+		UserId      string `json:"userId"`
+		Display     bool   `json:"display"`
+		DisplayOrder int    `json:"displayOrder"`
+		Data        string `json:"data"`
+		Expired     string `json:"expired"`
+		Created     string `json:"created"`
+		Updated     string `json:"updated"`
+		Expand      *struct {
+			UserId *struct {
+				Id       string `json:"id"`
+				Name     string `json:"name"`
+				Nickname string `json:"nickname"`
+				Avatar   string `json:"avatar"`
+			} `json:"userId"`
+		} `json:"expand,omitempty"`
+	}
+
+	items := make([]*ownerWithUser, 0, len(owners))
+	for _, owner := range owners {
+		item := &ownerWithUser{
+			Id:          owner.Id,
+			MedalId:     owner.MedalId(),
+			UserId:      owner.UserId(),
+			Display:     owner.Display(),
+			DisplayOrder: owner.DisplayOrder(),
+			Data:        owner.Data(),
+			Expired:     owner.Expired().String(),
+			Created:     owner.Created().String(),
+			Updated:     owner.Updated().String(),
+		}
+		if user, exists := usersMap[owner.UserId()]; exists {
+			item.Expand = &struct {
+				UserId *struct {
+					Id       string `json:"id"`
+					Name     string `json:"name"`
+					Nickname string `json:"nickname"`
+					Avatar   string `json:"avatar"`
+				} `json:"userId"`
+			}{
+				UserId: &struct {
+					Id       string `json:"id"`
+					Name     string `json:"name"`
+					Nickname string `json:"nickname"`
+					Avatar   string `json:"avatar"`
+				}{
+					Id:       user.Id,
+					Name:     user.Name(),
+					Nickname: user.Nickname(),
+					Avatar:   user.Avatar(),
+				},
+			}
+		}
+		items = append(items, item)
+	}
+
 	return event.JSON(http.StatusOK, map[string]any{
-		"items":      owners,
+		"items":      items,
 		"total":      total,
 		"page":       page,
 		"pageSize":   pageSize,
