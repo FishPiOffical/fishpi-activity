@@ -197,7 +197,7 @@ func (controller *PointController) List(event *core.RequestEvent) error {
 
 	// 获取所有分组
 	var groups []string
-	rows, err := event.App.DB().Select("DISTINCT " + model.PointsFieldGroup).From(model.DbNamePoints).Rows()
+	rows, err := event.App.DB().Select(fmt.Sprintf("DISTINCT `%s`", model.PointsFieldGroup)).From(model.DbNamePoints).Rows()
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
