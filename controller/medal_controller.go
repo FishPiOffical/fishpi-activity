@@ -554,6 +554,16 @@ type syncOwnersResult struct {
 func (controller *MedalController) syncSingleMedalOwners(app core.App, medalId string) (*syncOwnersResult, error) {
 	logger := controller.makeActionLogger("sync_medal_owners_internal").With(slog.String("medal_id", medalId))
 
+	// 先查找本地勋章记录，获取其 PocketBase ID
+	localMedal := new(model.Medal)
+	if err := app.RecordQuery(model.DbNameMedals).Where(dbx.HashExp{
+		model.MedalsFieldMedalId: medalId,
+	}).One(localMedal); err != nil {
+		logger.Error("本地勋章不存在，请先同步勋章", slog.Any("err", err))
+		return nil, fmt.Errorf("本地勋章不存在: %s", medalId)
+	}
+	localMedalRecordId := localMedal.Id
+
 	const pageSize = 100
 	var page = 1
 	var allOwners []*types2.MedalOwner
@@ -587,72 +597,98 @@ func (controller *MedalController) syncSingleMedalOwners(app core.App, medalId s
 		return nil, err
 	}
 
+	userCollection, err := app.FindCollectionByNameOrId(model.DbNameUsers)
+	if err != nil {
+		return nil, err
+	}
+
 	var result syncOwnersResult
 
 	if err = app.RunInTransaction(func(txApp core.App) error {
-		// 标记现有记录为待删除
-		_, txErr := txApp.DB().Update(model.DbNameMedalOwners, dbx.Params{
-			model.MedalOwnersFieldUserId: dbx.NewExp(fmt.Sprintf("'pending_delete_' || `%s`", model.MedalOwnersFieldUserId)),
-		}, dbx.HashExp{
-			model.MedalOwnersFieldMedalId: medalId,
-		}).Execute()
-		if txErr != nil {
-			return txErr
+		// 获取该勋章现有的所有拥有者记录ID
+		var existingOwners []*model.MedalOwner
+		if txErr := txApp.RecordQuery(model.DbNameMedalOwners).Where(dbx.HashExp{
+			model.MedalOwnersFieldMedalId: localMedalRecordId,
+		}).All(&existingOwners); txErr != nil {
+			logger.Warn("查询现有拥有者失败", slog.Any("err", txErr))
 		}
 
+		// 构建现有拥有者映射 (userId -> record)
+		existingMap := make(map[string]*model.MedalOwner)
+		for _, owner := range existingOwners {
+			existingMap[owner.UserId()] = owner
+		}
+
+		// 记录本次同步处理的用户ID
+		processedUserIds := make(map[string]bool)
+
 		for _, ownerData := range allOwners {
-			ownerRecord := new(model.MedalOwner)
-			if txErr = txApp.RecordQuery(model.DbNameMedalOwners).Where(dbx.And(
-				dbx.HashExp{model.MedalOwnersFieldMedalId: medalId},
-				dbx.Or(
-					dbx.HashExp{model.MedalOwnersFieldUserId: ownerData.UserId},
-					dbx.HashExp{model.MedalOwnersFieldUserId: "pending_delete_" + ownerData.UserId},
-				),
-			)).One(ownerRecord); txErr != nil {
-				// 创建新记录
-				ownerRecord = model.NewMedalOwnerFromCollection(ownerCollection)
-				ownerRecord.SetMedalId(medalId)
-				ownerRecord.SetUserId(ownerData.UserId)
-				ownerRecord.SetDisplay(ownerData.Display)
-				ownerRecord.SetDisplayOrder(ownerData.DisplayOrder)
-				ownerRecord.SetData(ownerData.Data)
-				if ownerData.ExpireTime > 0 {
-					if expired, parseErr := types.ParseDateTime(time.UnixMilli(ownerData.ExpireTime)); parseErr == nil {
-						ownerRecord.SetExpired(expired)
-					}
+			// 根据鱼排用户ID查找本地用户记录
+			localUser := new(model.User)
+			if txErr := txApp.RecordQuery(model.DbNameUsers).Where(dbx.HashExp{
+				model.UsersFieldOId: ownerData.UserId,
+			}).One(localUser); txErr != nil {
+				// 本地用户不存在，创建一个
+				localUser = model.NewUserFromCollection(userCollection)
+				localUser.SetOId(ownerData.UserId)
+				localUser.SetName(ownerData.UserName)
+				localUser.SetNickname(ownerData.UserName)
+				localUser.Set(model.UsersFieldEmail, fmt.Sprintf("%s@fishpi.cn", ownerData.UserId))
+				localUser.SetRaw("password", fmt.Sprintf("temp_%s_%d", ownerData.UserId, time.Now().UnixNano()))
+				if txErr = txApp.Save(localUser); txErr != nil {
+					logger.Warn("创建本地用户失败", slog.Any("err", txErr), slog.String("user_id", ownerData.UserId))
+					continue
 				}
-				if txErr = txApp.Save(ownerRecord); txErr != nil {
-					return txErr
-				}
-				result.Created++
-			} else {
+			}
+			localUserRecordId := localUser.Id
+			processedUserIds[localUserRecordId] = true
+
+			// 查找或创建勋章拥有者记录
+			if existingOwner, exists := existingMap[localUserRecordId]; exists {
 				// 更新记录
-				ownerRecord.SetUserId(ownerData.UserId)
-				ownerRecord.SetDisplay(ownerData.Display)
-				ownerRecord.SetDisplayOrder(ownerData.DisplayOrder)
-				ownerRecord.SetData(ownerData.Data)
+				existingOwner.SetDisplay(ownerData.Display)
+				existingOwner.SetDisplayOrder(ownerData.DisplayOrder)
+				existingOwner.SetData(ownerData.Data)
 				if ownerData.ExpireTime > 0 {
 					if expired, parseErr := types.ParseDateTime(time.UnixMilli(ownerData.ExpireTime)); parseErr == nil {
-						ownerRecord.SetExpired(expired)
+						existingOwner.SetExpired(expired)
 					}
 				}
-				if txErr = txApp.Save(ownerRecord); txErr != nil {
-					return txErr
+				if txErr := txApp.Save(existingOwner); txErr != nil {
+					logger.Warn("更新拥有者记录失败", slog.Any("err", txErr))
+					continue
 				}
 				result.Updated++
+			} else {
+				// 创建新记录
+				ownerRecord := model.NewMedalOwnerFromCollection(ownerCollection)
+				ownerRecord.SetMedalId(localMedalRecordId)
+				ownerRecord.SetUserId(localUserRecordId)
+				ownerRecord.SetDisplay(ownerData.Display)
+				ownerRecord.SetDisplayOrder(ownerData.DisplayOrder)
+				ownerRecord.SetData(ownerData.Data)
+				if ownerData.ExpireTime > 0 {
+					if expired, parseErr := types.ParseDateTime(time.UnixMilli(ownerData.ExpireTime)); parseErr == nil {
+						ownerRecord.SetExpired(expired)
+					}
+				}
+				if txErr := txApp.Save(ownerRecord); txErr != nil {
+					logger.Warn("创建拥有者记录失败", slog.Any("err", txErr))
+					continue
+				}
+				result.Created++
 			}
 		}
 
-		// 删除待删除的记录
-		var res sql.Result
-		if res, txErr = txApp.DB().Delete(model.DbNameMedalOwners, dbx.And(
-			dbx.HashExp{model.MedalOwnersFieldMedalId: medalId},
-			dbx.Like(model.MedalOwnersFieldUserId, "pending_delete_"),
-		)).Execute(); txErr != nil {
-			return txErr
-		}
-		if result.Deleted, txErr = res.RowsAffected(); txErr != nil {
-			return txErr
+		// 删除不在本次同步中的记录
+		for userRecordId, owner := range existingMap {
+			if !processedUserIds[userRecordId] {
+				if txErr := txApp.Delete(owner); txErr != nil {
+					logger.Warn("删除拥有者记录失败", slog.Any("err", txErr))
+					continue
+				}
+				result.Deleted++
+			}
 		}
 
 		return nil
@@ -700,6 +736,16 @@ func (controller *MedalController) SyncUserMedals(event *core.RequestEvent) erro
 		return event.BadRequestError("缺少用户ID", nil)
 	}
 
+	// 先查找本地用户记录
+	localUser := new(model.User)
+	if err := event.App.RecordQuery(model.DbNameUsers).Where(dbx.HashExp{
+		model.UsersFieldOId: userId,
+	}).One(localUser); err != nil {
+		logger.Error("本地用户不存在", slog.Any("err", err), slog.String("user_id", userId))
+		return event.BadRequestError("本地用户不存在，请先同步用户", nil)
+	}
+	localUserRecordId := localUser.Id
+
 	// 查询用户的所有勋章
 	resp, err := controller.fishPiSdk.PostMedalAdminUserMedals(&types2.PostMedalAdminUserMedalsRequest{
 		UserId: userId,
@@ -724,72 +770,86 @@ func (controller *MedalController) SyncUserMedals(event *core.RequestEvent) erro
 		createdCount int64
 		updatedCount int64
 		deletedCount int64
+		skippedCount int64
 	)
 
 	if err = event.App.RunInTransaction(func(txApp core.App) error {
-		// 标记该用户的所有勋章为待删除
-		_, txErr := txApp.DB().Update(model.DbNameMedalOwners, dbx.Params{
-			model.MedalOwnersFieldMedalId: dbx.NewExp(fmt.Sprintf("'pending_delete_' || `%s`", model.MedalOwnersFieldMedalId)),
-		}, dbx.HashExp{
-			model.MedalOwnersFieldUserId: userId,
-		}).Execute()
-		if txErr != nil {
-			return txErr
+		// 获取该用户现有的所有勋章记录
+		var existingOwners []*model.MedalOwner
+		if txErr := txApp.RecordQuery(model.DbNameMedalOwners).Where(dbx.HashExp{
+			model.MedalOwnersFieldUserId: localUserRecordId,
+		}).All(&existingOwners); txErr != nil {
+			logger.Warn("查询现有勋章失败", slog.Any("err", txErr))
 		}
 
+		// 构建现有勋章映射 (medalRecordId -> record)
+		existingMap := make(map[string]*model.MedalOwner)
+		for _, owner := range existingOwners {
+			existingMap[owner.MedalId()] = owner
+		}
+
+		// 记录本次同步处理的勋章ID
+		processedMedalIds := make(map[string]bool)
+
 		for _, medalData := range medals {
-			ownerRecord := new(model.MedalOwner)
-			if txErr = txApp.RecordQuery(model.DbNameMedalOwners).Where(dbx.And(
-				dbx.HashExp{model.MedalOwnersFieldUserId: userId},
-				dbx.Or(
-					dbx.HashExp{model.MedalOwnersFieldMedalId: medalData.MedalId},
-					dbx.HashExp{model.MedalOwnersFieldMedalId: "pending_delete_" + medalData.MedalId},
-				),
-			)).One(ownerRecord); txErr != nil {
-				// 创建新记录
-				ownerRecord = model.NewMedalOwnerFromCollection(ownerCollection)
-				ownerRecord.SetMedalId(medalData.MedalId)
-				ownerRecord.SetUserId(userId)
-				ownerRecord.SetDisplay(medalData.Display)
-				ownerRecord.SetDisplayOrder(medalData.DisplayOrder)
-				ownerRecord.SetData(medalData.Data)
-				if medalData.ExpireTime > 0 {
-					if expired, parseErr := types.ParseDateTime(time.UnixMilli(medalData.ExpireTime)); parseErr == nil {
-						ownerRecord.SetExpired(expired)
-					}
-				}
-				if txErr = txApp.Save(ownerRecord); txErr != nil {
-					return txErr
-				}
-				createdCount++
-			} else {
+			// 根据鱼排勋章ID查找本地勋章记录
+			localMedal := new(model.Medal)
+			if txErr := txApp.RecordQuery(model.DbNameMedals).Where(dbx.HashExp{
+				model.MedalsFieldMedalId: medalData.MedalId,
+			}).One(localMedal); txErr != nil {
+				logger.Warn("本地勋章不存在，跳过", slog.String("medal_id", medalData.MedalId))
+				skippedCount++
+				continue
+			}
+			localMedalRecordId := localMedal.Id
+			processedMedalIds[localMedalRecordId] = true
+
+			// 查找或创建勋章拥有者记录
+			if existingOwner, exists := existingMap[localMedalRecordId]; exists {
 				// 更新记录
-				ownerRecord.SetMedalId(medalData.MedalId)
-				ownerRecord.SetDisplay(medalData.Display)
-				ownerRecord.SetDisplayOrder(medalData.DisplayOrder)
-				ownerRecord.SetData(medalData.Data)
+				existingOwner.SetDisplay(medalData.Display)
+				existingOwner.SetDisplayOrder(medalData.DisplayOrder)
+				existingOwner.SetData(medalData.Data)
 				if medalData.ExpireTime > 0 {
 					if expired, parseErr := types.ParseDateTime(time.UnixMilli(medalData.ExpireTime)); parseErr == nil {
-						ownerRecord.SetExpired(expired)
+						existingOwner.SetExpired(expired)
 					}
 				}
-				if txErr = txApp.Save(ownerRecord); txErr != nil {
-					return txErr
+				if txErr := txApp.Save(existingOwner); txErr != nil {
+					logger.Warn("更新勋章拥有记录失败", slog.Any("err", txErr))
+					continue
 				}
 				updatedCount++
+			} else {
+				// 创建新记录
+				ownerRecord := model.NewMedalOwnerFromCollection(ownerCollection)
+				ownerRecord.SetMedalId(localMedalRecordId)
+				ownerRecord.SetUserId(localUserRecordId)
+				ownerRecord.SetDisplay(medalData.Display)
+				ownerRecord.SetDisplayOrder(medalData.DisplayOrder)
+				ownerRecord.SetData(medalData.Data)
+				if medalData.ExpireTime > 0 {
+					if expired, parseErr := types.ParseDateTime(time.UnixMilli(medalData.ExpireTime)); parseErr == nil {
+						ownerRecord.SetExpired(expired)
+					}
+				}
+				if txErr := txApp.Save(ownerRecord); txErr != nil {
+					logger.Warn("创建勋章拥有记录失败", slog.Any("err", txErr))
+					continue
+				}
+				createdCount++
 			}
 		}
 
-		// 删除待删除的记录
-		var res sql.Result
-		if res, txErr = txApp.DB().Delete(model.DbNameMedalOwners, dbx.And(
-			dbx.HashExp{model.MedalOwnersFieldUserId: userId},
-			dbx.Like(model.MedalOwnersFieldMedalId, "pending_delete_"),
-		)).Execute(); txErr != nil {
-			return txErr
-		}
-		if deletedCount, txErr = res.RowsAffected(); txErr != nil {
-			return txErr
+		// 删除不在本次同步中的记录
+		for medalRecordId, owner := range existingMap {
+			if !processedMedalIds[medalRecordId] {
+				if txErr := txApp.Delete(owner); txErr != nil {
+					logger.Warn("删除勋章拥有记录失败", slog.Any("err", txErr))
+					continue
+				}
+				deletedCount++
+			}
 		}
 
 		return nil
@@ -804,6 +864,7 @@ func (controller *MedalController) SyncUserMedals(event *core.RequestEvent) erro
 		slog.Int64("created", createdCount),
 		slog.Int64("updated", updatedCount),
 		slog.Int64("deleted", deletedCount),
+		slog.Int64("skipped", skippedCount),
 	)
 
 	return event.JSON(http.StatusOK, map[string]any{
@@ -811,6 +872,7 @@ func (controller *MedalController) SyncUserMedals(event *core.RequestEvent) erro
 		"created":      createdCount,
 		"updated":      updatedCount,
 		"deleted":      deletedCount,
+		"skipped":      skippedCount,
 	})
 }
 
@@ -822,6 +884,16 @@ func (controller *MedalController) GetMedalOwners(event *core.RequestEvent) erro
 	if medalId == "" {
 		return event.BadRequestError("缺少勋章ID", nil)
 	}
+
+	// 先查找本地勋章记录
+	localMedal := new(model.Medal)
+	if err := event.App.RecordQuery(model.DbNameMedals).Where(dbx.HashExp{
+		model.MedalsFieldMedalId: medalId,
+	}).One(localMedal); err != nil {
+		logger.Error("本地勋章不存在", slog.Any("err", err), slog.String("medal_id", medalId))
+		return event.NotFoundError("本地勋章不存在", err)
+	}
+	localMedalRecordId := localMedal.Id
 
 	page, _ := strconv.Atoi(event.Request.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(event.Request.URL.Query().Get("pageSize"))
@@ -837,7 +909,7 @@ func (controller *MedalController) GetMedalOwners(event *core.RequestEvent) erro
 
 	// 先查询总数
 	if err := event.App.RecordQuery(model.DbNameMedalOwners).Where(dbx.HashExp{
-		model.MedalOwnersFieldMedalId: medalId,
+		model.MedalOwnersFieldMedalId: localMedalRecordId,
 	}).Select("count(*)").Row(&total); err != nil {
 		logger.Error("查询勋章拥有者总数失败", slog.Any("err", err))
 		return event.InternalServerError("查询勋章拥有者总数失败", err)
@@ -845,7 +917,7 @@ func (controller *MedalController) GetMedalOwners(event *core.RequestEvent) erro
 
 	// 再查询列表
 	if err := event.App.RecordQuery(model.DbNameMedalOwners).Where(dbx.HashExp{
-		model.MedalOwnersFieldMedalId: medalId,
+		model.MedalOwnersFieldMedalId: localMedalRecordId,
 	}).OrderBy(fmt.Sprintf("%s DESC", model.MedalOwnersFieldCreated)).Limit(int64(pageSize)).Offset(int64((page - 1) * pageSize)).All(&owners); err != nil {
 		logger.Error("查询勋章拥有者列表失败", slog.Any("err", err))
 		return event.InternalServerError("查询勋章拥有者列表失败", err)
@@ -879,6 +951,26 @@ func (controller *MedalController) GrantMedal(event *core.RequestEvent) error {
 		return event.BadRequestError("用户ID和勋章ID不能为空", nil)
 	}
 
+	// 查找本地勋章记录
+	localMedal := new(model.Medal)
+	if err := event.App.RecordQuery(model.DbNameMedals).Where(dbx.HashExp{
+		model.MedalsFieldMedalId: req.MedalId,
+	}).One(localMedal); err != nil {
+		logger.Error("本地勋章不存在", slog.Any("err", err), slog.String("medal_id", req.MedalId))
+		return event.BadRequestError("本地勋章不存在，请先同步勋章", nil)
+	}
+	localMedalRecordId := localMedal.Id
+
+	// 查找本地用户记录
+	localUser := new(model.User)
+	if err := event.App.RecordQuery(model.DbNameUsers).Where(dbx.HashExp{
+		model.UsersFieldOId: req.UserId,
+	}).One(localUser); err != nil {
+		logger.Error("本地用户不存在", slog.Any("err", err), slog.String("user_id", req.UserId))
+		return event.BadRequestError("本地用户不存在，请先同步用户", nil)
+	}
+	localUserRecordId := localUser.Id
+
 	// 调用鱼排接口授予勋章
 	resp, err := controller.fishPiSdk.PostMedalAdminGrant(req.UserId, req.MedalId, req.ExpireTime, req.Data)
 	if err != nil {
@@ -900,12 +992,12 @@ func (controller *MedalController) GrantMedal(event *core.RequestEvent) error {
 	ownerRecord := new(model.MedalOwner)
 	created := false
 	if err = event.App.RecordQuery(model.DbNameMedalOwners).Where(dbx.And(
-		dbx.HashExp{model.MedalOwnersFieldMedalId: req.MedalId},
-		dbx.HashExp{model.MedalOwnersFieldUserId: req.UserId},
+		dbx.HashExp{model.MedalOwnersFieldMedalId: localMedalRecordId},
+		dbx.HashExp{model.MedalOwnersFieldUserId: localUserRecordId},
 	)).One(ownerRecord); err != nil {
 		ownerRecord = model.NewMedalOwnerFromCollection(ownerCollection)
-		ownerRecord.SetMedalId(req.MedalId)
-		ownerRecord.SetUserId(req.UserId)
+		ownerRecord.SetMedalId(localMedalRecordId)
+		ownerRecord.SetUserId(localUserRecordId)
 		created = true
 	}
 
@@ -951,6 +1043,22 @@ func (controller *MedalController) RevokeMedal(event *core.RequestEvent) error {
 		return event.BadRequestError("用户ID和勋章ID不能为空", nil)
 	}
 
+	// 查找本地勋章记录
+	localMedal := new(model.Medal)
+	if err := event.App.RecordQuery(model.DbNameMedals).Where(dbx.HashExp{
+		model.MedalsFieldMedalId: req.MedalId,
+	}).One(localMedal); err != nil {
+		logger.Warn("本地勋章不存在", slog.Any("err", err), slog.String("medal_id", req.MedalId))
+	}
+
+	// 查找本地用户记录
+	localUser := new(model.User)
+	if err := event.App.RecordQuery(model.DbNameUsers).Where(dbx.HashExp{
+		model.UsersFieldOId: req.UserId,
+	}).One(localUser); err != nil {
+		logger.Warn("本地用户不存在", slog.Any("err", err), slog.String("user_id", req.UserId))
+	}
+
 	// 调用鱼排接口撤销勋章
 	resp, err := controller.fishPiSdk.PostMedalAdminRevoke(req.UserId, req.MedalId)
 	if err != nil {
@@ -963,11 +1071,13 @@ func (controller *MedalController) RevokeMedal(event *core.RequestEvent) error {
 	}
 
 	// 删除本地记录
-	if _, err = event.App.DB().Delete(model.DbNameMedalOwners, dbx.And(
-		dbx.HashExp{model.MedalOwnersFieldMedalId: req.MedalId},
-		dbx.HashExp{model.MedalOwnersFieldUserId: req.UserId},
-	)).Execute(); err != nil {
-		logger.Warn("删除本地勋章拥有者记录失败", slog.Any("err", err))
+	if localMedal.Id != "" && localUser.Id != "" {
+		if _, err = event.App.DB().Delete(model.DbNameMedalOwners, dbx.And(
+			dbx.HashExp{model.MedalOwnersFieldMedalId: localMedal.Id},
+			dbx.HashExp{model.MedalOwnersFieldUserId: localUser.Id},
+		)).Execute(); err != nil {
+			logger.Warn("删除本地勋章拥有者记录失败", slog.Any("err", err))
+		}
 	}
 
 	logger.Info("撤销勋章成功",
