@@ -78,11 +78,14 @@ func (controller *MedalController) registerRoutes() {
 	// 搜索勋章
 	group.GET("/search", controller.Search)
 
-	// 用户选择相关
-	group.GET("/users/search", controller.SearchUsers)
-	group.GET("/activities", controller.GetActivities)
-	group.GET("/activity/{activityId}/participants", controller.GetActivityParticipants)
-	group.GET("/vote/{voteId}/jury", controller.GetVoteJuryMembers)
+	// 用户列表相关接口 - 放在 /backend/admin/user-list/* 下
+	userListGroup := controller.group.Group("/admin/user-list").Bind(
+		RequireAdminRole(),
+	)
+	userListGroup.GET("/search", controller.SearchUsers)
+	userListGroup.GET("/activities", controller.GetActivities)
+	userListGroup.GET("/activity/{activityId}/participants", controller.GetActivityParticipants)
+	userListGroup.GET("/vote/{voteId}/jury", controller.GetVoteJuryMembers)
 }
 
 func (controller *MedalController) makeActionLogger(action string) *slog.Logger {
@@ -1309,26 +1312,41 @@ func (controller *MedalController) GetActivityParticipants(event *core.RequestEv
 		return event.NotFoundError("活动不存在", err)
 	}
 
-	voteId := activity.GetString(model.ActivitiesFieldVoteId)
-	if voteId == "" {
-		return event.JSON(http.StatusOK, map[string]any{
-			"items": []any{},
-		})
+	// 收集活动ID列表（包括主活动和子活动）
+	activityIds := []any{activityId}
+	childActivityIds := activity.GetChildActivityIds()
+	for _, childId := range childActivityIds {
+		activityIds = append(activityIds, childId)
 	}
 
-	// 查询投票日志中的用户
-	var voteJuryLogs []*model.VoteJuryLog
-	if err := event.App.RecordQuery(model.DbNameVoteJuryLogs).
-		Where(dbx.HashExp{model.VoteJuryLogFieldVoteId: voteId}).
-		All(&voteJuryLogs); err != nil {
-		logger.Warn("查询投票日志失败", slog.Any("err", err))
-	}
-
-	// 收集所有参与的用户ID (toUserId 是被投票的参与者)
+	// 收集所有参与的用户ID
 	userIdSet := make(map[string]bool)
-	for _, log := range voteJuryLogs {
-		if toUserId := log.ToUserId(); toUserId != "" {
-			userIdSet[toUserId] = true
+
+	// 从 Articles 表查询参与者
+	var articles []*model.Article
+	if err := event.App.RecordQuery(model.DbNameArticles).
+		Where(dbx.In(model.ArticlesFieldActivityId, activityIds...)).
+		All(&articles); err != nil {
+		logger.Warn("查询 Articles 表失败", slog.Any("err", err))
+	} else {
+		for _, article := range articles {
+			if userId := article.UserId(); userId != "" {
+				userIdSet[userId] = true
+			}
+		}
+	}
+
+	// 从 relArticles 表查询参与者
+	var relArticles []*model.RelArticle
+	if err := event.App.RecordQuery(model.DbNameRelArticles).
+		Where(dbx.In(model.RelArticlesFieldActivityId, activityIds...)).
+		All(&relArticles); err != nil {
+		logger.Warn("查询 relArticles 表失败", slog.Any("err", err))
+	} else {
+		for _, relArticle := range relArticles {
+			if userId := relArticle.UserId(); userId != "" {
+				userIdSet[userId] = true
+			}
 		}
 	}
 
@@ -1534,6 +1552,8 @@ func (controller *MedalController) GrantMedalBatch(event *core.RequestEvent) err
 				results = append(results, result)
 				continue
 			}
+			// 增加时间间隔，防止请求过于频繁被封控
+			time.Sleep(500 * time.Millisecond)
 		}
 
 		// 保存到本地数据库
