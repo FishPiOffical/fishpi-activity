@@ -107,7 +107,7 @@ func (controller *MedalController) List(event *core.RequestEvent) error {
 	}
 
 	// 再查询列表
-	if err := event.App.RecordQuery(model.DbNameMedals).OrderBy(fmt.Sprintf("%s DESC", model.MedalsFieldMedalId)).Limit(int64(pageSize)).Offset(int64((page - 1) * pageSize)).All(&medals); err != nil {
+	if err := event.App.RecordQuery(model.DbNameMedals).OrderBy("rowid DESC").Limit(int64(pageSize)).Offset(int64((page - 1) * pageSize)).All(&medals); err != nil {
 		logger.Error("查询勋章列表失败", slog.Any("err", err))
 		return event.InternalServerError("查询勋章列表失败", err)
 	}
@@ -173,32 +173,34 @@ func (controller *MedalController) Create(event *core.RequestEvent) error {
 		return event.InternalServerError("在鱼排创建勋章失败: "+resp.Msg, nil)
 	}
 
-	medalData := resp.Data
+	// 只返回了resp.Data.OId，没有什么用，获取不到新创建的勋章详情，所以只能结束。
 
-	// 保存到本地数据库
-	medalCollection, err := event.App.FindCollectionByNameOrId(model.DbNameMedals)
-	if err != nil {
-		logger.Error("获取勋章集合失败", slog.Any("err", err))
-		return event.InternalServerError("获取勋章集合失败", err)
-	}
+	//medalData := resp.Data
+	//
+	//// 保存到本地数据库
+	//medalCollection, err := event.App.FindCollectionByNameOrId(model.DbNameMedals)
+	//if err != nil {
+	//	logger.Error("获取勋章集合失败", slog.Any("err", err))
+	//	return event.InternalServerError("获取勋章集合失败", err)
+	//}
+	//
+	//medal := model.NewMedalFromCollection(medalCollection)
+	//medal.SetOId(medalData.OId)
+	//medal.SetMedalId(medalData.MedalId)
+	//medal.SetType(medalData.MedalType)
+	//medal.SetName(medalData.MedalName)
+	//medal.SetDescription(medalData.MedalDescription)
+	//medal.SetAttr(medalData.MedalAttr)
+	//
+	//if err = event.App.Save(medal); err != nil {
+	//	logger.Error("保存勋章失败", slog.Any("err", err))
+	//	return event.InternalServerError("保存勋章失败", err)
+	//}
 
-	medal := model.NewMedalFromCollection(medalCollection)
-	medal.SetOId(medalData.OId)
-	medal.SetMedalId(medalData.MedalId)
-	medal.SetType(medalData.MedalType)
-	medal.SetName(medalData.MedalName)
-	medal.SetDescription(medalData.MedalDescription)
-	medal.SetAttr(medalData.MedalAttr)
-
-	if err = event.App.Save(medal); err != nil {
-		logger.Error("保存勋章失败", slog.Any("err", err))
-		return event.InternalServerError("保存勋章失败", err)
-	}
-
-	logger.Info("创建勋章成功", slog.Any("medal", medal))
+	logger.Info("创建勋章成功", slog.Any("medal", resp.Data))
 
 	return event.JSON(http.StatusOK, map[string]any{
-		"medal": medal,
+		"medal": resp.Data,
 	})
 }
 

@@ -84,7 +84,7 @@ func (application *Application) init(event *core.BootstrapEvent) error {
 
 	application.fishPiSdk = sdk.NewSDK(
 		provider,
-		//sdk.WithLogDir("_tmp/logs/"),
+		sdk.WithLogDir("_tmp/logs/"),
 	)
 
 	application.fetchArticleService = fetch_article.NewService(application.app, application.fishPiSdk)
