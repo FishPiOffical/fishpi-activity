@@ -269,6 +269,47 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 		votedCount := len(votedUserIds)
 		abstainCount := len(juryUsers) - votedCount // 弃票人数
 
+		// 构建弃票用户列表
+		abstainUsers := make([]map[string]any, 0)
+		for _, juryUser := range juryUsers {
+			if !votedUserIds[juryUser.UserId()] {
+				user := new(model.User)
+				if err := controller.app.RecordQuery(model.DbNameUsers).
+					Where(dbx.HashExp{model.CommonFieldId: juryUser.UserId()}).
+					One(user); err == nil {
+					abstainUsers = append(abstainUsers, map[string]any{
+						"id":       user.Id,
+						"name":     user.Name(),
+						"nickname": user.Nickname(),
+						"avatar":   user.Avatar(),
+					})
+				}
+			}
+		}
+
+		// 构建投票详情：谁投了谁，投了几票
+		// 结构: toUserId -> [{fromUserId, fromUser, times}]
+		voteDetailsMap := make(map[string][]map[string]any)
+		for _, log := range roundVoteLogs {
+			fromUser := new(model.User)
+			var fromUserData map[string]any
+			if err := controller.app.RecordQuery(model.DbNameUsers).
+				Where(dbx.HashExp{model.CommonFieldId: log.FromUserId()}).
+				One(fromUser); err == nil {
+				fromUserData = map[string]any{
+					"id":       fromUser.Id,
+					"name":     fromUser.Name(),
+					"nickname": fromUser.Nickname(),
+					"avatar":   fromUser.Avatar(),
+				}
+			}
+			voteDetailsMap[log.ToUserId()] = append(voteDetailsMap[log.ToUserId()], map[string]any{
+				"fromUserId": log.FromUserId(),
+				"fromUser":   fromUserData,
+				"times":      log.Times(),
+			})
+		}
+
 		// 扩展用户信息
 		resultWithUsers := make([]map[string]any, 0)
 		for userId, count := range voteResults {
@@ -285,9 +326,10 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 				}
 			}
 			resultWithUsers = append(resultWithUsers, map[string]any{
-				"userId": userId,
-				"count":  count,
-				"user":   userData,
+				"userId":      userId,
+				"count":       count,
+				"user":        userData,
+				"voteDetails": voteDetailsMap[userId], // 添加投票详情
 			})
 		}
 
@@ -298,6 +340,7 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 			"userIds":      result.UserIds(),
 			"votedCount":   votedCount,
 			"abstainCount": abstainCount,
+			"abstainUsers": abstainUsers,
 			"totalMembers": len(juryUsers),
 		})
 	}
@@ -1257,6 +1300,17 @@ func (controller *VoteJuryController) CancelVote(event *core.RequestEvent) error
 func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error {
 	voteId := event.Request.PathValue("voteId")
 
+	// 先获取已通过的评审团成员（用于计算弃票）
+	var juryUsers []*model.VoteJuryUser
+	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
+		Where(dbx.HashExp{
+			model.VoteJuryUserFieldVoteId: voteId,
+			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+		}).
+		All(&juryUsers); err != nil {
+		return event.InternalServerError("获取评审团成员失败", err)
+	}
+
 	// 获取所有轮次的投票结果
 	var results []*model.VoteJuryResult
 	if err := controller.app.RecordQuery(model.DbNameVoteJuryResults).
@@ -1290,6 +1344,48 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 			votedUserIds[log.FromUserId()] = true
 		}
 		votedCount := len(votedUserIds)
+		abstainCount := len(juryUsers) - votedCount
+
+		// 构建弃票用户列表
+		abstainUsers := make([]map[string]any, 0)
+		for _, juryUser := range juryUsers {
+			if !votedUserIds[juryUser.UserId()] {
+				user := new(model.User)
+				if err := controller.app.RecordQuery(model.DbNameUsers).
+					Where(dbx.HashExp{model.CommonFieldId: juryUser.UserId()}).
+					One(user); err == nil {
+					abstainUsers = append(abstainUsers, map[string]any{
+						"id":       user.Id,
+						"name":     user.Name(),
+						"nickname": user.Nickname(),
+						"avatar":   user.Avatar(),
+					})
+				}
+			}
+		}
+
+		// 构建投票详情：谁投了谁，投了几票
+		// 结构: toUserId -> [{fromUserId, fromUser, times}]
+		voteDetailsMap := make(map[string][]map[string]any)
+		for _, log := range roundVoteLogs {
+			fromUser := new(model.User)
+			var fromUserData map[string]any
+			if err := controller.app.RecordQuery(model.DbNameUsers).
+				Where(dbx.HashExp{model.CommonFieldId: log.FromUserId()}).
+				One(fromUser); err == nil {
+				fromUserData = map[string]any{
+					"id":       fromUser.Id,
+					"name":     fromUser.Name(),
+					"nickname": fromUser.Nickname(),
+					"avatar":   fromUser.Avatar(),
+				}
+			}
+			voteDetailsMap[log.ToUserId()] = append(voteDetailsMap[log.ToUserId()], map[string]any{
+				"fromUserId": log.FromUserId(),
+				"fromUser":   fromUserData,
+				"times":      log.Times(),
+			})
+		}
 
 		// 扩展用户信息
 		resultWithUsers := make([]map[string]any, 0)
@@ -1307,18 +1403,22 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 				}
 			}
 			resultWithUsers = append(resultWithUsers, map[string]any{
-				"userId": userId,
-				"count":  count,
-				"user":   userData,
+				"userId":      userId,
+				"count":       count,
+				"user":        userData,
+				"voteDetails": voteDetailsMap[userId], // 添加投票详情
 			})
 		}
 
 		roundResults = append(roundResults, map[string]any{
-			"round":      result.Round(),
-			"results":    resultWithUsers,
-			"continue":   result.Continue(),
-			"userIds":    result.UserIds(),
-			"votedCount": votedCount,
+			"round":        result.Round(),
+			"results":      resultWithUsers,
+			"continue":     result.Continue(),
+			"userIds":      result.UserIds(),
+			"votedCount":   votedCount,
+			"abstainCount": abstainCount,
+			"abstainUsers": abstainUsers,
+			"totalMembers": len(juryUsers),
 		})
 	}
 
@@ -1328,17 +1428,6 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 		Where(dbx.HashExp{model.VoteJuryRuleFieldVoteId: voteId}).
 		One(rule); err != nil {
 		return event.InternalServerError("获取评审团规则失败", err)
-	}
-
-	// 获取已通过的评审团成员
-	var juryUsers []*model.VoteJuryUser
-	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
-		Where(dbx.HashExp{
-			model.VoteJuryUserFieldVoteId: voteId,
-			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
-		}).
-		All(&juryUsers); err != nil {
-		return event.InternalServerError("获取评审团成员失败", err)
 	}
 
 	// 扩展用户信息
@@ -1412,6 +1501,13 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 		}
 	}
 
+	// 检查当前用户是否是管理员
+	isAdmin := false
+	if event.Auth != nil {
+		admins := rule.Admins()
+		isAdmin = slices.Contains(admins, event.Auth.Id)
+	}
+
 	return event.JSON(http.StatusOK, map[string]any{
 		"status":          rule.Status(),
 		"currentRound":    rule.CurrentRound(),
@@ -1420,6 +1516,7 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 		"totalMembers":    len(juryUsers),
 		"isVoteCompleted": isVoteCompleted,
 		"finalWinner":     finalWinner,
+		"isAdmin":         isAdmin,
 	})
 }
 
