@@ -42,6 +42,7 @@ type Application struct {
 	rewardDistributionController *controller.RewardDistributionController
 	voteJuryController           *controller.VoteJuryController
 	medalController              *controller.MedalController
+	pointController              *controller.PointController
 
 	eventbus *events.Service
 }
@@ -132,6 +133,9 @@ func (application *Application) registerRoutes(event *core.ServeEvent) error {
 
 	// 勋章管理
 	application.medalController = controller.NewMedalController(event, backendGroup, application.baseController)
+
+	// 积分管理
+	application.pointController = controller.NewPointController(event, backendGroup, application.baseController)
 
 	// 待定
 	application.userController = controller.NewUserController(event)
