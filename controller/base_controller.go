@@ -1,11 +1,13 @@
 package controller
 
 import (
+	"bless-activity/model"
 	"bless-activity/service/events"
 	"time"
 
 	"github.com/FishPiOffical/golang-sdk/sdk"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/hook"
 )
 
 type BaseController struct {
@@ -35,4 +37,27 @@ func (controller *BaseController) CheckActivity(event *core.RequestEvent) error 
 	}
 
 	return event.Next()
+}
+
+// RequireAdminRole 验证用户是否拥有管理员角色
+// 此中间件会先验证用户是否已登录，然后检查用户的 role 字段是否为 admin
+func RequireAdminRole() *hook.Handler[*core.RequestEvent] {
+	return &hook.Handler[*core.RequestEvent]{
+		Id: "require_admin_role",
+		Func: func(event *core.RequestEvent) error {
+			// 获取当前用户记录
+			authRecord := event.Auth
+			if authRecord == nil {
+				return event.UnauthorizedError("未登录", nil)
+			}
+
+			// 检查用户角色
+			role := authRecord.GetString(model.UsersFieldRole)
+			if role != string(model.UserRoleAdmin) {
+				return event.ForbiddenError("需要管理员权限", nil)
+			}
+
+			return event.Next()
+		},
+	}
 }
