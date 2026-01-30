@@ -12,280 +12,82 @@ import (
 )
 
 const (
-	// JuryApplyStatusPending is a JuryApplyStatus of type pending.
-	// 待审核
-	JuryApplyStatusPending JuryApplyStatus = "pending"
-	// JuryApplyStatusApproved is a JuryApplyStatus of type approved.
-	// 已通过
-	JuryApplyStatusApproved JuryApplyStatus = "approved"
-	// JuryApplyStatusRejected is a JuryApplyStatus of type rejected.
-	// 已拒绝
-	JuryApplyStatusRejected JuryApplyStatus = "rejected"
+	// VoteLogValidValid is a VoteLogValid of type valid.
+	// 有效
+	VoteLogValidValid VoteLogValid = "valid"
+	// VoteLogValidInvalid is a VoteLogValid of type invalid.
+	// 无效
+	VoteLogValidInvalid VoteLogValid = "invalid"
 )
 
-var ErrInvalidJuryApplyStatus = fmt.Errorf("not a valid JuryApplyStatus, try [%s]", strings.Join(_JuryApplyStatusNames, ", "))
+var ErrInvalidVoteLogValid = fmt.Errorf("not a valid VoteLogValid, try [%s]", strings.Join(_VoteLogValidNames, ", "))
 
-var _JuryApplyStatusNames = []string{
-	string(JuryApplyStatusPending),
-	string(JuryApplyStatusApproved),
-	string(JuryApplyStatusRejected),
+var _VoteLogValidNames = []string{
+	string(VoteLogValidValid),
+	string(VoteLogValidInvalid),
 }
 
-// JuryApplyStatusNames returns a list of possible string values of JuryApplyStatus.
-func JuryApplyStatusNames() []string {
-	tmp := make([]string, len(_JuryApplyStatusNames))
-	copy(tmp, _JuryApplyStatusNames)
+// VoteLogValidNames returns a list of possible string values of VoteLogValid.
+func VoteLogValidNames() []string {
+	tmp := make([]string, len(_VoteLogValidNames))
+	copy(tmp, _VoteLogValidNames)
 	return tmp
 }
 
-// JuryApplyStatusValues returns a list of the values for JuryApplyStatus
-func JuryApplyStatusValues() []JuryApplyStatus {
-	return []JuryApplyStatus{
-		JuryApplyStatusPending,
-		JuryApplyStatusApproved,
-		JuryApplyStatusRejected,
+// VoteLogValidValues returns a list of the values for VoteLogValid
+func VoteLogValidValues() []VoteLogValid {
+	return []VoteLogValid{
+		VoteLogValidValid,
+		VoteLogValidInvalid,
 	}
 }
 
 // String implements the Stringer interface.
-func (x JuryApplyStatus) String() string {
+func (x VoteLogValid) String() string {
 	return string(x)
 }
 
 // IsValid provides a quick way to determine if the typed value is
 // part of the allowed enumerated values
-func (x JuryApplyStatus) IsValid() bool {
-	_, err := ParseJuryApplyStatus(string(x))
+func (x VoteLogValid) IsValid() bool {
+	_, err := ParseVoteLogValid(string(x))
 	return err == nil
 }
 
-var _JuryApplyStatusValue = map[string]JuryApplyStatus{
-	"pending":  JuryApplyStatusPending,
-	"approved": JuryApplyStatusApproved,
-	"rejected": JuryApplyStatusRejected,
+var _VoteLogValidValue = map[string]VoteLogValid{
+	"valid":   VoteLogValidValid,
+	"invalid": VoteLogValidInvalid,
 }
 
-// ParseJuryApplyStatus attempts to convert a string to a JuryApplyStatus.
-func ParseJuryApplyStatus(name string) (JuryApplyStatus, error) {
-	if x, ok := _JuryApplyStatusValue[name]; ok {
+// ParseVoteLogValid attempts to convert a string to a VoteLogValid.
+func ParseVoteLogValid(name string) (VoteLogValid, error) {
+	if x, ok := _VoteLogValidValue[name]; ok {
 		return x, nil
 	}
-	return JuryApplyStatus(""), fmt.Errorf("%s is %w", name, ErrInvalidJuryApplyStatus)
+	return VoteLogValid(""), fmt.Errorf("%s is %w", name, ErrInvalidVoteLogValid)
 }
 
-// MustParseJuryApplyStatus converts a string to a JuryApplyStatus, and panics if is not valid.
-func MustParseJuryApplyStatus(name string) JuryApplyStatus {
-	val, err := ParseJuryApplyStatus(name)
+// MustParseVoteLogValid converts a string to a VoteLogValid, and panics if is not valid.
+func MustParseVoteLogValid(name string) VoteLogValid {
+	val, err := ParseVoteLogValid(name)
 	if err != nil {
 		panic(err)
 	}
 	return val
 }
 
-func (x JuryApplyStatus) Ptr() *JuryApplyStatus {
+func (x VoteLogValid) Ptr() *VoteLogValid {
 	return &x
 }
 
 // MarshalText implements the text marshaller method.
-func (x JuryApplyStatus) MarshalText() ([]byte, error) {
+func (x VoteLogValid) MarshalText() ([]byte, error) {
 	return []byte(string(x)), nil
 }
 
 // UnmarshalText implements the text unmarshaller method.
-func (x *JuryApplyStatus) UnmarshalText(text []byte) error {
-	tmp, err := ParseJuryApplyStatus(string(text))
-	if err != nil {
-		return err
-	}
-	*x = tmp
-	return nil
-}
-
-const (
-	// JuryStatusPending is a JuryStatus of type pending.
-	// 未开启
-	JuryStatusPending JuryStatus = "pending"
-	// JuryStatusApplying is a JuryStatus of type applying.
-	// 申请中
-	JuryStatusApplying JuryStatus = "applying"
-	// JuryStatusPublicity is a JuryStatus of type publicity.
-	// 公示中
-	JuryStatusPublicity JuryStatus = "publicity"
-	// JuryStatusVoting is a JuryStatus of type voting.
-	// 评审中
-	JuryStatusVoting JuryStatus = "voting"
-	// JuryStatusCompleted is a JuryStatus of type completed.
-	// 计票完成
-	JuryStatusCompleted JuryStatus = "completed"
-)
-
-var ErrInvalidJuryStatus = fmt.Errorf("not a valid JuryStatus, try [%s]", strings.Join(_JuryStatusNames, ", "))
-
-var _JuryStatusNames = []string{
-	string(JuryStatusPending),
-	string(JuryStatusApplying),
-	string(JuryStatusPublicity),
-	string(JuryStatusVoting),
-	string(JuryStatusCompleted),
-}
-
-// JuryStatusNames returns a list of possible string values of JuryStatus.
-func JuryStatusNames() []string {
-	tmp := make([]string, len(_JuryStatusNames))
-	copy(tmp, _JuryStatusNames)
-	return tmp
-}
-
-// JuryStatusValues returns a list of the values for JuryStatus
-func JuryStatusValues() []JuryStatus {
-	return []JuryStatus{
-		JuryStatusPending,
-		JuryStatusApplying,
-		JuryStatusPublicity,
-		JuryStatusVoting,
-		JuryStatusCompleted,
-	}
-}
-
-// String implements the Stringer interface.
-func (x JuryStatus) String() string {
-	return string(x)
-}
-
-// IsValid provides a quick way to determine if the typed value is
-// part of the allowed enumerated values
-func (x JuryStatus) IsValid() bool {
-	_, err := ParseJuryStatus(string(x))
-	return err == nil
-}
-
-var _JuryStatusValue = map[string]JuryStatus{
-	"pending":   JuryStatusPending,
-	"applying":  JuryStatusApplying,
-	"publicity": JuryStatusPublicity,
-	"voting":    JuryStatusVoting,
-	"completed": JuryStatusCompleted,
-}
-
-// ParseJuryStatus attempts to convert a string to a JuryStatus.
-func ParseJuryStatus(name string) (JuryStatus, error) {
-	if x, ok := _JuryStatusValue[name]; ok {
-		return x, nil
-	}
-	return JuryStatus(""), fmt.Errorf("%s is %w", name, ErrInvalidJuryStatus)
-}
-
-// MustParseJuryStatus converts a string to a JuryStatus, and panics if is not valid.
-func MustParseJuryStatus(name string) JuryStatus {
-	val, err := ParseJuryStatus(name)
-	if err != nil {
-		panic(err)
-	}
-	return val
-}
-
-func (x JuryStatus) Ptr() *JuryStatus {
-	return &x
-}
-
-// MarshalText implements the text marshaller method.
-func (x JuryStatus) MarshalText() ([]byte, error) {
-	return []byte(string(x)), nil
-}
-
-// UnmarshalText implements the text unmarshaller method.
-func (x *JuryStatus) UnmarshalText(text []byte) error {
-	tmp, err := ParseJuryStatus(string(text))
-	if err != nil {
-		return err
-	}
-	*x = tmp
-	return nil
-}
-
-const (
-	// JuryUserStatusPending is a JuryUserStatus of type pending.
-	// 待审核
-	JuryUserStatusPending JuryUserStatus = "pending"
-	// JuryUserStatusApproved is a JuryUserStatus of type approved.
-	// 已通过
-	JuryUserStatusApproved JuryUserStatus = "approved"
-	// JuryUserStatusRejected is a JuryUserStatus of type rejected.
-	// 已拒绝
-	JuryUserStatusRejected JuryUserStatus = "rejected"
-)
-
-var ErrInvalidJuryUserStatus = fmt.Errorf("not a valid JuryUserStatus, try [%s]", strings.Join(_JuryUserStatusNames, ", "))
-
-var _JuryUserStatusNames = []string{
-	string(JuryUserStatusPending),
-	string(JuryUserStatusApproved),
-	string(JuryUserStatusRejected),
-}
-
-// JuryUserStatusNames returns a list of possible string values of JuryUserStatus.
-func JuryUserStatusNames() []string {
-	tmp := make([]string, len(_JuryUserStatusNames))
-	copy(tmp, _JuryUserStatusNames)
-	return tmp
-}
-
-// JuryUserStatusValues returns a list of the values for JuryUserStatus
-func JuryUserStatusValues() []JuryUserStatus {
-	return []JuryUserStatus{
-		JuryUserStatusPending,
-		JuryUserStatusApproved,
-		JuryUserStatusRejected,
-	}
-}
-
-// String implements the Stringer interface.
-func (x JuryUserStatus) String() string {
-	return string(x)
-}
-
-// IsValid provides a quick way to determine if the typed value is
-// part of the allowed enumerated values
-func (x JuryUserStatus) IsValid() bool {
-	_, err := ParseJuryUserStatus(string(x))
-	return err == nil
-}
-
-var _JuryUserStatusValue = map[string]JuryUserStatus{
-	"pending":  JuryUserStatusPending,
-	"approved": JuryUserStatusApproved,
-	"rejected": JuryUserStatusRejected,
-}
-
-// ParseJuryUserStatus attempts to convert a string to a JuryUserStatus.
-func ParseJuryUserStatus(name string) (JuryUserStatus, error) {
-	if x, ok := _JuryUserStatusValue[name]; ok {
-		return x, nil
-	}
-	return JuryUserStatus(""), fmt.Errorf("%s is %w", name, ErrInvalidJuryUserStatus)
-}
-
-// MustParseJuryUserStatus converts a string to a JuryUserStatus, and panics if is not valid.
-func MustParseJuryUserStatus(name string) JuryUserStatus {
-	val, err := ParseJuryUserStatus(name)
-	if err != nil {
-		panic(err)
-	}
-	return val
-}
-
-func (x JuryUserStatus) Ptr() *JuryUserStatus {
-	return &x
-}
-
-// MarshalText implements the text marshaller method.
-func (x JuryUserStatus) MarshalText() ([]byte, error) {
-	return []byte(string(x)), nil
-}
-
-// UnmarshalText implements the text unmarshaller method.
-func (x *JuryUserStatus) UnmarshalText(text []byte) error {
-	tmp, err := ParseJuryUserStatus(string(text))
+func (x *VoteLogValid) UnmarshalText(text []byte) error {
+	tmp, err := ParseVoteLogValid(string(text))
 	if err != nil {
 		return err
 	}
@@ -370,90 +172,6 @@ func (x VoteType) MarshalText() ([]byte, error) {
 // UnmarshalText implements the text unmarshaller method.
 func (x *VoteType) UnmarshalText(text []byte) error {
 	tmp, err := ParseVoteType(string(text))
-	if err != nil {
-		return err
-	}
-	*x = tmp
-	return nil
-}
-
-const (
-	// VoteValidValid is a VoteValid of type valid.
-	// 有效
-	VoteValidValid VoteValid = "valid"
-	// VoteValidInvalid is a VoteValid of type invalid.
-	// 无效
-	VoteValidInvalid VoteValid = "invalid"
-)
-
-var ErrInvalidVoteValid = fmt.Errorf("not a valid VoteValid, try [%s]", strings.Join(_VoteValidNames, ", "))
-
-var _VoteValidNames = []string{
-	string(VoteValidValid),
-	string(VoteValidInvalid),
-}
-
-// VoteValidNames returns a list of possible string values of VoteValid.
-func VoteValidNames() []string {
-	tmp := make([]string, len(_VoteValidNames))
-	copy(tmp, _VoteValidNames)
-	return tmp
-}
-
-// VoteValidValues returns a list of the values for VoteValid
-func VoteValidValues() []VoteValid {
-	return []VoteValid{
-		VoteValidValid,
-		VoteValidInvalid,
-	}
-}
-
-// String implements the Stringer interface.
-func (x VoteValid) String() string {
-	return string(x)
-}
-
-// IsValid provides a quick way to determine if the typed value is
-// part of the allowed enumerated values
-func (x VoteValid) IsValid() bool {
-	_, err := ParseVoteValid(string(x))
-	return err == nil
-}
-
-var _VoteValidValue = map[string]VoteValid{
-	"valid":   VoteValidValid,
-	"invalid": VoteValidInvalid,
-}
-
-// ParseVoteValid attempts to convert a string to a VoteValid.
-func ParseVoteValid(name string) (VoteValid, error) {
-	if x, ok := _VoteValidValue[name]; ok {
-		return x, nil
-	}
-	return VoteValid(""), fmt.Errorf("%s is %w", name, ErrInvalidVoteValid)
-}
-
-// MustParseVoteValid converts a string to a VoteValid, and panics if is not valid.
-func MustParseVoteValid(name string) VoteValid {
-	val, err := ParseVoteValid(name)
-	if err != nil {
-		panic(err)
-	}
-	return val
-}
-
-func (x VoteValid) Ptr() *VoteValid {
-	return &x
-}
-
-// MarshalText implements the text marshaller method.
-func (x VoteValid) MarshalText() ([]byte, error) {
-	return []byte(string(x)), nil
-}
-
-// UnmarshalText implements the text unmarshaller method.
-func (x *VoteValid) UnmarshalText(text []byte) error {
-	tmp, err := ParseVoteValid(string(text))
 	if err != nil {
 		return err
 	}

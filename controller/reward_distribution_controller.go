@@ -103,7 +103,7 @@ func (c *RewardDistributionController) DistributeRewards(event *core.RequestEven
 		0,
 		map[string]any{
 			"voteId": voteId,
-			"valid":  model.VoteValidValid,
+			"valid":  model.VoteLogValidValid,
 		},
 	)
 	if err != nil {

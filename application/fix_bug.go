@@ -70,9 +70,9 @@ func (application *Application) fixVoteLogValid(e *core.BootstrapEvent) error {
 		threeMonthsAfterRegistration := registeredAt.Time().Add(time.Duration(voteRecord.UserRegisterDays()*24) * time.Hour)
 
 		if voteCreatedAt.Time().After(threeMonthsAfterRegistration) || voteCreatedAt.Time().Equal(threeMonthsAfterRegistration) {
-			voteLog.SetValid(model.VoteValidValid)
+			voteLog.SetValid(model.VoteLogValidValid)
 		} else {
-			voteLog.SetValid(model.VoteValidInvalid)
+			voteLog.SetValid(model.VoteLogValidInvalid)
 		}
 
 		if err := app.Save(voteLogRecord); err != nil {

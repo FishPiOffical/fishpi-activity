@@ -10,7 +10,7 @@ func (application *Application) registerHooks() {
 	//	if err != nil {
 	//		e.App.Logger().Warn("找不到投票用户", "userId", voteLog.FromUserId())
 	//		// If user not found, mark as invalid
-	//		voteLog.SetValid(model.VoteValidInvalid)
+	//		voteLog.SetValid(model.VoteLogValidInvalid)
 	//		return e.Next()
 	//	}
 	//
@@ -22,9 +22,9 @@ func (application *Application) registerHooks() {
 	//	threeMonthsAfterRegistration := registeredAt.Time().Add(time.Duration(voteRecord.UserRegisterDays()*24) * time.Hour)
 	//
 	//	if voteCreatedAt.Time().After(threeMonthsAfterRegistration) || voteCreatedAt.Time().Equal(threeMonthsAfterRegistration) {
-	//		voteLog.SetValid(model.VoteValidValid)
+	//		voteLog.SetValid(model.VoteLogValidValid)
 	//	} else {
-	//		voteLog.SetValid(model.VoteValidInvalid)
+	//		voteLog.SetValid(model.VoteLogValidInvalid)
 	//	}
 	//
 	//	return e.Next()

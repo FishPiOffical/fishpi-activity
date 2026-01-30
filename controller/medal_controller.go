@@ -1403,7 +1403,7 @@ func (controller *MedalController) GetVoteJuryMembers(event *core.RequestEvent) 
 	if err := event.App.RecordQuery(model.DbNameVoteJuryUsers).
 		Where(dbx.HashExp{
 			model.VoteJuryUserFieldVoteId: voteId,
-			model.VoteJuryUserFieldStatus: string(model.JuryUserStatusApproved),
+			model.VoteJuryUserFieldStatus: string(model.VoteJuryUserStatusApproved),
 		}).
 		All(&juryUsers); err != nil {
 		logger.Error("查询评审团成员失败", slog.Any("err", err))

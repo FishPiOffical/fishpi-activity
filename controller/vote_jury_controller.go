@@ -177,7 +177,7 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
 		Where(dbx.HashExp{
 			model.VoteJuryUserFieldVoteId: voteId,
-			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+			model.VoteJuryUserFieldStatus: model.VoteJuryUserStatusApproved,
 		}).
 		All(&juryUsers); err != nil {
 		return event.InternalServerError("获取评审团成员失败", err)
@@ -347,7 +347,7 @@ func (controller *VoteJuryController) GetJuryInfo(event *core.RequestEvent) erro
 
 	// 获取投票进度（仅评审中状态时）
 	var votingProgress map[string]any
-	if rule.Status() == model.JuryStatusVoting {
+	if rule.Status() == model.VoteJuryRuleStatusVoting {
 		currentRound := rule.CurrentRound()
 		if currentRound == 0 {
 			currentRound = 1
@@ -578,7 +578,7 @@ func (controller *VoteJuryController) AddMember(event *core.RequestEvent) error 
 	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
 		Where(dbx.HashExp{
 			model.VoteJuryUserFieldVoteId: data.VoteId,
-			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+			model.VoteJuryUserFieldStatus: model.VoteJuryUserStatusApproved,
 		}).
 		All(&approvedMembers); err != nil {
 		return event.InternalServerError("获取评审团成员失败", err)
@@ -597,7 +597,7 @@ func (controller *VoteJuryController) AddMember(event *core.RequestEvent) error 
 	juryUser := model.NewVoteJuryUserFromCollection(juryUserCollection)
 	juryUser.SetVoteId(data.VoteId)
 	juryUser.SetUserId(user.Id)
-	juryUser.SetStatus(model.JuryUserStatusApproved)
+	juryUser.SetStatus(model.VoteJuryUserStatusApproved)
 
 	if err := controller.app.Save(juryUser); err != nil {
 		return event.InternalServerError("添加评审团成员失败", err)
@@ -613,7 +613,7 @@ func (controller *VoteJuryController) AddMember(event *core.RequestEvent) error 
 	applyLog.SetVoteId(data.VoteId)
 	applyLog.SetUserId(user.Id)
 	applyLog.SetReason("管理员指定")
-	applyLog.SetStatus(model.JuryApplyStatusApproved)
+	applyLog.SetStatus(model.VoteJuryApplyLogStatusApproved)
 	applyLog.SetAdminId(event.Auth.Id)
 
 	if err := controller.app.Save(applyLog); err != nil {
@@ -663,14 +663,14 @@ func (controller *VoteJuryController) AuditApply(event *core.RequestEvent) error
 	}
 
 	// 检查申请状态
-	if applyLog.Status() != model.JuryApplyStatusPending {
+	if applyLog.Status() != model.VoteJuryApplyLogStatusPending {
 		return event.BadRequestError("该申请已处理", nil)
 	}
 
 	// 更新申请状态
-	newStatus := model.JuryApplyStatusApproved
+	newStatus := model.VoteJuryApplyLogStatusApproved
 	if data.Status == "rejected" {
-		newStatus = model.JuryApplyStatusRejected
+		newStatus = model.VoteJuryApplyLogStatusRejected
 	}
 	applyLog.SetStatus(newStatus)
 	applyLog.SetAdminId(event.Auth.Id)
@@ -680,7 +680,7 @@ func (controller *VoteJuryController) AuditApply(event *core.RequestEvent) error
 	}
 
 	// 如果通过，创建评审团成员记录
-	if newStatus == model.JuryApplyStatusApproved {
+	if newStatus == model.VoteJuryApplyLogStatusApproved {
 		// 获取评审团规则检查席位
 		rule := event.Get("jury_rule").(*model.VoteJuryRule)
 
@@ -689,7 +689,7 @@ func (controller *VoteJuryController) AuditApply(event *core.RequestEvent) error
 		if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
 			Where(dbx.HashExp{
 				model.VoteJuryUserFieldVoteId: data.VoteId,
-				model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+				model.VoteJuryUserFieldStatus: model.VoteJuryUserStatusApproved,
 			}).
 			All(&approvedMembers); err != nil {
 			return event.InternalServerError("获取评审团成员失败", err)
@@ -697,7 +697,7 @@ func (controller *VoteJuryController) AuditApply(event *core.RequestEvent) error
 
 		if len(approvedMembers) >= rule.Count() {
 			// 席位已满，将申请状态改回待审核
-			applyLog.SetStatus(model.JuryApplyStatusPending)
+			applyLog.SetStatus(model.VoteJuryApplyLogStatusPending)
 			applyLog.SetAdminId("")
 			_ = controller.app.Save(applyLog)
 			return event.BadRequestError("评审团席位已满", nil)
@@ -712,7 +712,7 @@ func (controller *VoteJuryController) AuditApply(event *core.RequestEvent) error
 			}).
 			One(existingMember); err == nil {
 			// 更新状态为通过
-			existingMember.SetStatus(model.JuryUserStatusApproved)
+			existingMember.SetStatus(model.VoteJuryUserStatusApproved)
 			if err := controller.app.Save(existingMember); err != nil {
 				return event.InternalServerError("更新评审团成员状态失败", err)
 			}
@@ -726,7 +726,7 @@ func (controller *VoteJuryController) AuditApply(event *core.RequestEvent) error
 			juryUser := model.NewVoteJuryUserFromCollection(juryUserCollection)
 			juryUser.SetVoteId(data.VoteId)
 			juryUser.SetUserId(applyLog.UserId())
-			juryUser.SetStatus(model.JuryUserStatusApproved)
+			juryUser.SetStatus(model.VoteJuryUserStatusApproved)
 
 			if err := controller.app.Save(juryUser); err != nil {
 				return event.InternalServerError("创建评审团成员失败", err)
@@ -751,7 +751,7 @@ func (controller *VoteJuryController) SwitchStatus(event *core.RequestEvent) err
 	}
 
 	// 解析新状态
-	newStatus, err := model.ParseJuryStatus(data.NewStatus)
+	newStatus, err := model.ParseVoteJuryRuleStatus(data.NewStatus)
 	if err != nil {
 		return event.BadRequestError("状态值无效", nil)
 	}
@@ -760,12 +760,12 @@ func (controller *VoteJuryController) SwitchStatus(event *core.RequestEvent) err
 	currentStatus := rule.Status()
 
 	// 状态流转校验（支持前进和回退）
-	validTransitions := map[model.JuryStatus][]model.JuryStatus{
-		model.JuryStatusPending:   {model.JuryStatusApplying},
-		model.JuryStatusApplying:  {model.JuryStatusPublicity, model.JuryStatusPending},   // 可回退到未开启
-		model.JuryStatusPublicity: {model.JuryStatusVoting, model.JuryStatusApplying},     // 可回退到申请中
-		model.JuryStatusVoting:    {model.JuryStatusCompleted, model.JuryStatusPublicity}, // 可回退到公示中
-		model.JuryStatusCompleted: {model.JuryStatusVoting},                               // 可回退到评审中
+	validTransitions := map[model.VoteJuryRuleStatus][]model.VoteJuryRuleStatus{
+		model.VoteJuryRuleStatusPending:   {model.VoteJuryRuleStatusApplying},
+		model.VoteJuryRuleStatusApplying:  {model.VoteJuryRuleStatusPublicity, model.VoteJuryRuleStatusPending},   // 可回退到未开启
+		model.VoteJuryRuleStatusPublicity: {model.VoteJuryRuleStatusVoting, model.VoteJuryRuleStatusApplying},     // 可回退到申请中
+		model.VoteJuryRuleStatusVoting:    {model.VoteJuryRuleStatusCompleted, model.VoteJuryRuleStatusPublicity}, // 可回退到公示中
+		model.VoteJuryRuleStatusCompleted: {model.VoteJuryRuleStatusVoting},                               // 可回退到评审中
 	}
 
 	validNextStatuses := validTransitions[currentStatus]
@@ -774,7 +774,7 @@ func (controller *VoteJuryController) SwitchStatus(event *core.RequestEvent) err
 	}
 
 	// 进入评审状态时，初始化轮次
-	if newStatus == model.JuryStatusVoting && rule.CurrentRound() == 0 {
+	if newStatus == model.VoteJuryRuleStatusVoting && rule.CurrentRound() == 0 {
 		rule.SetCurrentRound(1)
 	}
 
@@ -803,7 +803,7 @@ func (controller *VoteJuryController) Calculate(event *core.RequestEvent) error 
 	rule := event.Get("jury_rule").(*model.VoteJuryRule)
 
 	// 检查状态
-	if rule.Status() != model.JuryStatusVoting {
+	if rule.Status() != model.VoteJuryRuleStatusVoting {
 		return event.BadRequestError("当前状态不是评审中", nil)
 	}
 
@@ -962,7 +962,7 @@ func (controller *VoteJuryController) Calculate(event *core.RequestEvent) error 
 	}
 
 	// 投票结束，更新状态为计票完成
-	rule.SetStatus(model.JuryStatusCompleted)
+	rule.SetStatus(model.VoteJuryRuleStatusCompleted)
 	if err := controller.app.Save(rule); err != nil {
 		return event.InternalServerError("更新状态失败", err)
 	}
@@ -1028,7 +1028,7 @@ func (controller *VoteJuryController) Apply(event *core.RequestEvent) error {
 	}
 
 	// 检查状态是否允许申请
-	if rule.Status() != model.JuryStatusApplying {
+	if rule.Status() != model.VoteJuryRuleStatusApplying {
 		return event.BadRequestError("当前不在申请阶段", nil)
 	}
 
@@ -1041,7 +1041,7 @@ func (controller *VoteJuryController) Apply(event *core.RequestEvent) error {
 			model.VoteJuryApplyLogFieldVoteId: data.VoteId,
 			model.VoteJuryApplyLogFieldUserId: userId,
 		}).
-		AndWhere(dbx.NotIn(model.VoteJuryApplyLogFieldStatus, model.JuryApplyStatusRejected)).
+		AndWhere(dbx.NotIn(model.VoteJuryApplyLogFieldStatus, model.VoteJuryApplyLogStatusRejected)).
 		One(existingLog); err == nil {
 		return event.BadRequestError("您已经申请过了", nil)
 	}
@@ -1056,7 +1056,7 @@ func (controller *VoteJuryController) Apply(event *core.RequestEvent) error {
 	applyLog.SetVoteId(data.VoteId)
 	applyLog.SetUserId(userId)
 	applyLog.SetReason(data.Reason)
-	applyLog.SetStatus(model.JuryApplyStatusPending)
+	applyLog.SetStatus(model.VoteJuryApplyLogStatusPending)
 
 	if err := controller.app.Save(applyLog); err != nil {
 		return event.InternalServerError("提交申请失败", err)
@@ -1095,7 +1095,7 @@ func (controller *VoteJuryController) Vote(event *core.RequestEvent) error {
 	}
 
 	// 检查状态
-	if rule.Status() != model.JuryStatusVoting {
+	if rule.Status() != model.VoteJuryRuleStatusVoting {
 		return event.BadRequestError("当前不在投票阶段", nil)
 	}
 
@@ -1111,7 +1111,7 @@ func (controller *VoteJuryController) Vote(event *core.RequestEvent) error {
 		Where(dbx.HashExp{
 			model.VoteJuryUserFieldVoteId: data.VoteId,
 			model.VoteJuryUserFieldUserId: userId,
-			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+			model.VoteJuryUserFieldStatus: model.VoteJuryUserStatusApproved,
 		}).
 		One(juryUser); err != nil {
 		return event.ForbiddenError("您不是评审团成员", nil)
@@ -1225,7 +1225,7 @@ func (controller *VoteJuryController) CancelVote(event *core.RequestEvent) error
 	}
 
 	// 检查状态
-	if rule.Status() != model.JuryStatusVoting {
+	if rule.Status() != model.VoteJuryRuleStatusVoting {
 		return event.BadRequestError("当前不在投票阶段", nil)
 	}
 
@@ -1253,7 +1253,7 @@ func (controller *VoteJuryController) CancelVote(event *core.RequestEvent) error
 		Where(dbx.HashExp{
 			model.VoteJuryUserFieldVoteId: data.VoteId,
 			model.VoteJuryUserFieldUserId: userId,
-			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+			model.VoteJuryUserFieldStatus: model.VoteJuryUserStatusApproved,
 		}).
 		One(juryUser); err != nil {
 		return event.ForbiddenError("您不是评审团成员", nil)
@@ -1305,7 +1305,7 @@ func (controller *VoteJuryController) GetResult(event *core.RequestEvent) error 
 	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
 		Where(dbx.HashExp{
 			model.VoteJuryUserFieldVoteId: voteId,
-			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+			model.VoteJuryUserFieldStatus: model.VoteJuryUserStatusApproved,
 		}).
 		All(&juryUsers); err != nil {
 		return event.InternalServerError("获取评审团成员失败", err)
@@ -1550,7 +1550,7 @@ func (controller *VoteJuryController) RemoveMember(event *core.RequestEvent) err
 	}
 
 	// 更新成员状态为已拒绝
-	juryUser.SetStatus(model.JuryUserStatusRejected)
+	juryUser.SetStatus(model.VoteJuryUserStatusRejected)
 	if err := controller.app.Save(juryUser); err != nil {
 		return event.InternalServerError("更新评审团成员状态失败", err)
 	}
@@ -1566,7 +1566,7 @@ func (controller *VoteJuryController) RemoveMember(event *core.RequestEvent) err
 		Limit(1).
 		All(&applyLogs); err == nil && len(applyLogs) > 0 {
 		applyLog := applyLogs[0]
-		applyLog.SetStatus(model.JuryApplyStatusRejected)
+		applyLog.SetStatus(model.VoteJuryApplyLogStatusRejected)
 		applyLog.SetReason("管理员删除")
 		applyLog.SetAdminId(event.Auth.Id)
 		if err := controller.app.Save(applyLog); err != nil {
@@ -1615,7 +1615,7 @@ func (controller *VoteJuryController) GetMyApply(event *core.RequestEvent) error
 		Where(dbx.HashExp{
 			model.VoteJuryUserFieldVoteId: voteId,
 			model.VoteJuryUserFieldUserId: userId,
-			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+			model.VoteJuryUserFieldStatus: model.VoteJuryUserStatusApproved,
 		}).
 		One(juryUser); err == nil {
 		isMember = true
@@ -1649,7 +1649,7 @@ func (controller *VoteJuryController) GetCandidates(event *core.RequestEvent) er
 		Where(dbx.HashExp{
 			model.VoteJuryUserFieldVoteId: voteId,
 			model.VoteJuryUserFieldUserId: userId,
-			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+			model.VoteJuryUserFieldStatus: model.VoteJuryUserStatusApproved,
 		}).
 		One(juryUser); err != nil {
 		return event.ForbiddenError("您不是评审团成员", nil)
@@ -1831,7 +1831,7 @@ func (controller *VoteJuryController) GetVoteDetails(event *core.RequestEvent) e
 	if err := controller.app.RecordQuery(model.DbNameVoteJuryUsers).
 		Where(dbx.HashExp{
 			model.VoteJuryUserFieldVoteId: voteId,
-			model.VoteJuryUserFieldStatus: model.JuryUserStatusApproved,
+			model.VoteJuryUserFieldStatus: model.VoteJuryUserStatusApproved,
 		}).
 		All(&juryUsers); err != nil {
 		return event.InternalServerError("获取评审团成员失败", err)

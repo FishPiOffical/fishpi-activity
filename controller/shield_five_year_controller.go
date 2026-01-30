@@ -544,10 +544,10 @@ func (controller *ShieldFiveYearController) Vote(e *core.RequestEvent) error {
 		return e.BadRequestError("您的投票次数已用完", nil)
 	}
 
-	valid := model.VoteValidInvalid
+	valid := model.VoteLogValidInvalid
 	userDay := user.RegisteredAt().Add(time.Duration(vote.UserRegisterDays()*24) * time.Hour)
 	if userDay.After(types.NowDateTime()) {
-		valid = model.VoteValidValid
+		valid = model.VoteLogValidValid
 	}
 
 	// 创建投票记录
@@ -675,7 +675,7 @@ func (controller *ShieldFiveYearController) GetVoteStats(e *core.RequestEvent) e
 		0,
 		map[string]any{
 			"voteId": voteId,
-			"valid":  model.VoteValidValid,
+			"valid":  model.VoteLogValidValid,
 		},
 	)
 
@@ -1028,7 +1028,7 @@ func (controller *ShieldFiveYearController) GetVoteQuota(e *core.RequestEvent) e
 		map[string]any{
 			"voteId": voteId,
 			"userId": authRecord.Id,
-			"valid":  model.VoteValidValid,
+			"valid":  model.VoteLogValidValid,
 		},
 	)
 
