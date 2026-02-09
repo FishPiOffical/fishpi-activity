@@ -12,6 +12,7 @@ const (
 	ArticlesFieldTitle      = "title"
 	ArticlesFieldContent    = "content"
 	ArticlesFieldShieldId   = "shieldId"
+	ArticlesFieldImage      = "image"
 	ArticlesFieldCreated    = "created"
 	ArticlesFieldUpdated    = "updated"
 )
@@ -46,6 +47,14 @@ func (article *Article) UserId() string {
 
 func (article *Article) SetUserId(value string) {
 	article.Set(ArticlesFieldUserId, value)
+}
+
+func (article *Article) Image() string {
+	return article.GetString(ArticlesFieldImage)
+}
+
+func (article *Article) SetImage(value any) {
+	article.Set(ArticlesFieldImage, value)
 }
 
 func (article *Article) Title() string {

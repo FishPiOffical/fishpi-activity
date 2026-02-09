@@ -23,6 +23,8 @@ const (
 	ActivitiesFieldHideInList               = "hideInList"               // 是否在列表隐藏
 	ActivitiesFieldChildActivityIds         = "childActivityIds"         // 子活动ID列表
 	ActivitiesFieldImage                    = "image"                    // 活动图片
+	ActivitiesFieldImages                   = "images"                   // 活动图片(多张)
+	ActivitiesFieldMetadata                 = "metadata"                 // 元数据(JSON)
 	ActivitiesFieldCreated                  = "created"                  // 创建时间
 	ActivitiesFieldUpdated                  = "updated"                  // 更新时间
 )
@@ -48,6 +50,22 @@ func (activity *Activity) GetName() string {
 
 func (activity *Activity) SetName(value string) {
 	activity.Set(ActivitiesFieldName, value)
+}
+
+func (activity *Activity) GetMetadata() any {
+	return activity.Get(ActivitiesFieldMetadata)
+}
+
+func (activity *Activity) SetMetadata(value any) {
+	activity.Set(ActivitiesFieldMetadata, value)
+}
+
+func (activity *Activity) GetImages() []string {
+	return activity.GetStringSlice(ActivitiesFieldImages)
+}
+
+func (activity *Activity) SetImages(value []string) {
+	activity.Set(ActivitiesFieldImages, value)
 }
 
 // ActivityTemplate 活动模版
