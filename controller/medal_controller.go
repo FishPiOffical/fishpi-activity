@@ -639,12 +639,27 @@ func (controller *MedalController) syncSingleMedalOwners(app core.App, medalId s
 				model.UsersFieldOId: ownerData.UserId,
 			}).One(localUser); txErr != nil {
 				// 本地用户不存在，创建一个
+
+				userResp, userErr := controller.fishPiSdk.GetUserInfoById(ownerData.UserId)
+				if userErr != nil {
+					logger.Warn("查询用户信息失败，跳过该拥有者", slog.Any("err", userErr), slog.String("user_id", ownerData.UserId))
+					continue
+				}
+				if userResp.Code != 0 {
+					logger.Warn("查询用户信息失败，跳过该拥有者", slog.Any("resp", userResp), slog.String("user_id", ownerData.UserId))
+					continue
+				}
+
 				localUser = model.NewUserFromCollection(userCollection)
+				localUser.SetEmail(fmt.Sprintf("%s@fishpi.cn", ownerData.UserId))
+				localUser.SetEmailVisibility(true)
+				localUser.SetVerified(true)
 				localUser.SetOId(ownerData.UserId)
-				localUser.SetName(ownerData.UserName)
-				localUser.SetNickname(ownerData.UserName)
-				localUser.Set(model.UsersFieldEmail, fmt.Sprintf("%s@fishpi.cn", ownerData.UserId))
-				localUser.SetRaw("password", fmt.Sprintf("temp_%s_%d", ownerData.UserId, time.Now().UnixNano()))
+				localUser.SetName(userResp.Data.UserName)
+				localUser.SetNickname(userResp.Data.UserName)
+				localUser.SetAvatar(userResp.Data.UserAvatarURL)
+				localUser.SetRandomPassword()
+
 				if txErr = txApp.Save(localUser); txErr != nil {
 					logger.Warn("创建本地用户失败", slog.Any("err", txErr), slog.String("user_id", ownerData.UserId))
 					continue
